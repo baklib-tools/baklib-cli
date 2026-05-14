@@ -5,12 +5,12 @@
 ## 当前里程碑
 
 - **版本**：0.1.0
-- **焦点**：P0 本地主题预览（Vite + React + Liquid + Open API fixture）与 MCP 能力对等的 CLI 子命令。
+- **焦点**：P0 本地主题预览（Vite + React + Liquid + Open API fixture）与常用 Open API 子命令。
 
 ## Next（最多 5 条）
 
 1. 扩展 Liquid **SupportedSubset**（`form_tag`、`paginate_tag`、`query` 等，见 [baklib-theme-dev references](https://github.com/baklib-tools/skills/tree/main/skills/baklib-theme-dev/references)）。
-2. 评估抽取 `@baklib/open-api-client` 与 `baklib-mcp-server` 共用（当前：**方案 2 — CLI 内实现 + 惰性配置**）。
+2. 评估抽取 `@baklib/open-api-client` 供多工具共用（当前：**方案 2 — CLI 内实现 + 惰性配置**）。
 3. Open API 若增加主题文件上传，增加 `baklib theme push`。
 4. 主题预览：设备宽度 / 多路由 / 错误 overlay 增强。
 5. `kb pull` 支持批量（按目录树与 meta）。
@@ -21,7 +21,7 @@
 
 ## Decisions（ADR 摘要）
 
-- **API 客户端**：首版在 `baklib-cli` 内自建 `BaklibClient` + `ops-*`，避免 MCP `api-client.js` 顶层 `exit(1)`；配置与 `baklib-mcp-server` 的 `BAKLIB_MCP_*` 一致并支持 `BAKLIB_TOKEN` / `BAKLIB_API_BASE` 别名文件键。
+- **API 客户端**：首版在 `baklib-cli` 内自建 `BaklibClient` + `ops-*`，无模块顶层 `exit(1)`；配置见仓库 `README`（`.baklib/baklib.json`、`~/.config/baklib/baklib.json` 等）。
 - **主题预览**：Node 侧 **liquidjs** + 自定义 tag/filter 注册表；**不**嵌入完整 Rails；与线上一致性以 **SupportedSubset** 明示。
 - **打包**：CLI 入口 `esbuild` 打包为 `dist/index.js`；`theme-preview` 以源码随包分发，动态 `import()` 插件路径；Vite/React/Liquidjs 列为 external 由运行时 `node_modules` 解析。
 
@@ -39,7 +39,7 @@
 
 ## 发布主题（无 Open API 写接口时）
 
-Open API 在 MCP 范围内仅有 `GET /themes`，**无**主题文件上传。发布流程：在 Baklib 后台 / 组织模板管理中上传 zip 或绑定仓库主题；待 API 发布后由 CLI 承接 `theme push`。
+Open API 当前仅有 `GET /themes`，**无**主题文件上传。发布流程：在 Baklib 后台 / 组织模板管理中上传 zip 或绑定仓库主题；待 API 发布后由 CLI 承接 `theme push`。
 
 ## 维护约定
 

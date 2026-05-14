@@ -1,14 +1,14 @@
 import { Command } from "commander";
 import fs from "fs/promises";
 import path from "path";
-import { loadBaklibConfig, requireToken } from "../config.js";
+import { loadBaklibConfig, requireToken, resolveOpenApiBaseUrl } from "../config.js";
 import { createBaklibApi } from "../api/index.js";
 import { mergedOpts, printResult } from "../lib/cli-output.js";
 
 async function getApi(cmd) {
   const o = mergedOpts(cmd);
   const cfg = await loadBaklibConfig();
-  if (o.apiBase) cfg.apiBase = String(o.apiBase).replace(/\/$/, "");
+  if (o.apiBase) cfg.apiBase = resolveOpenApiBaseUrl(String(o.apiBase));
   requireToken(cfg);
   return createBaklibApi(cfg);
 }

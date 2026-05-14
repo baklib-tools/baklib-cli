@@ -1,5 +1,5 @@
 /**
- * DAM `dam-id=` 简写展开；与 baklib-mcp-server 对齐，通过 fetchFn 注入 BaklibClient#request
+ * DAM `dam-id=` 简写展开；通过 fetchFn 注入 BaklibClient#request
  */
 
 import { mergeResponseMarkdownQuery } from "./defaults.js";
@@ -11,7 +11,13 @@ const DAM_IMAGE_SHORTHAND = /!\[([^\]]*)\]\(\s*dam-id\s*[:=]\s*(\d+)\s*\)/g;
 const HTML_IMG_DAM_SRC = /<img\b([^>]*)\>/gi;
 
 function damResolveDisabled() {
-  const v = (process.env.BAKLIB_MCP_DAM_MARKDOWN_NO_RESOLVE || "").trim().toLowerCase();
+  const v = (
+    process.env.BAKLIB_DAM_MARKDOWN_NO_RESOLVE ||
+    process.env.BAKLIB_MCP_DAM_MARKDOWN_NO_RESOLVE ||
+    ""
+  )
+    .trim()
+    .toLowerCase();
   return v === "1" || v === "true" || v === "yes";
 }
 

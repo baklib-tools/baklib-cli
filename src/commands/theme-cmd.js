@@ -2,14 +2,14 @@ import { Command } from "commander";
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath, pathToFileURL } from "url";
-import { loadBaklibConfig, requireToken } from "../config.js";
+import { loadBaklibConfig, requireToken, resolveOpenApiBaseUrl, openApiHostFromResolvedBase } from "../config.js";
 import { createBaklibApi } from "../api/index.js";
 import { mergedOpts, printResult } from "../lib/cli-output.js";
 
 async function getApi(cmd) {
   const o = mergedOpts(cmd);
   const cfg = await loadBaklibConfig();
-  if (o.apiBase) cfg.apiBase = String(o.apiBase).replace(/\/$/, "");
+  if (o.apiBase) cfg.apiBase = resolveOpenApiBaseUrl(String(o.apiBase));
   requireToken(cfg);
   return createBaklibApi(cfg);
 }
@@ -136,10 +136,10 @@ export function themeCommand() {
     .action(async (opts, cmd) => {
       const cfg = await loadBaklibConfig();
       const m = mergedOpts(cmd);
-      if (m.apiBase) cfg.apiBase = String(m.apiBase).replace(/\/$/, "");
+      if (m.apiBase) cfg.apiBase = resolveOpenApiBaseUrl(String(m.apiBase));
       requireToken(cfg);
-      process.env.BAKLIB_MCP_TOKEN = cfg.token;
-      process.env.BAKLIB_MCP_API_BASE = cfg.apiBase;
+      process.env.BAKLIB_TOKEN = cfg.token;
+      process.env.BAKLIB_API_BASE = openApiHostFromResolvedBase(cfg.apiBase);
       process.env.BAKLIB_PREVIEW_SITE_ID = opts.siteId;
       process.env.BAKLIB_THEME_DIR = path.resolve(opts.themeDir);
       const port = num(opts.port) ?? 5174;

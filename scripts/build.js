@@ -22,6 +22,7 @@ async function build() {
     sourcemap: false,
     external: [
       "commander",
+      "cfonts",
       "form-data",
       "vite",
       "@vitejs/plugin-react",

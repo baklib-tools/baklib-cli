@@ -19,6 +19,7 @@
     "theme-preview:install": "npm install --prefix theme-preview"
   },
   "dependencies": {
+    "cfonts": "^3.3.1",
     "commander": "^12.1.0",
     "form-data": "^4.0.0",
     "liquidjs": "^10.21.1",

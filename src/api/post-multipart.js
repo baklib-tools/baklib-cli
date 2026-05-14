@@ -1,5 +1,5 @@
 /**
- * 使用 Node http(s) + form-data 上传，与 baklib-mcp-server 行为一致
+ * 使用 Node http(s) + form-data 多部分上传
  */
 
 import http from "http";

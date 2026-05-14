@@ -1,13 +1,15 @@
 import { buildLiquidAssigns } from "./build-assigns.js";
+import { resolveOpenApiBaseUrl } from "./open-api-defaults.js";
 
 function authHeaders() {
-  const token = process.env.BAKLIB_MCP_TOKEN || process.env.BAKLIB_TOKEN;
-  if (!token) throw new Error("缺少 BAKLIB_MCP_TOKEN");
+  const token = process.env.BAKLIB_TOKEN || process.env.BAKLIB_MCP_TOKEN;
+  if (!token) throw new Error("缺少 BAKLIB_TOKEN（或环境变量中提供 Token）");
   return { Authorization: token };
 }
 
 export function apiBase() {
-  return (process.env.BAKLIB_MCP_API_BASE || "https://open.baklib.com/api/v1").replace(/\/$/, "");
+  const raw = process.env.BAKLIB_API_BASE || process.env.BAKLIB_MCP_API_BASE || "";
+  return resolveOpenApiBaseUrl(raw);
 }
 
 /**

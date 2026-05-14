@@ -1,6 +1,5 @@
 /**
- * Rewrite shorthand DAM image markdown before calling Baklib APIs.
- * 与 baklib-mcp-server/lib/dam-markdown-normalize.js 对齐。
+ * 在调用 Baklib API 前将 DAM 图片简写规范为占位 URL。
  */
 
 const DAM_ID_SHORT_IMG = /!\[([^\]]*)\]\(\s*dam-id\s*[:=]\s*(\d+)\s*\)/g;
