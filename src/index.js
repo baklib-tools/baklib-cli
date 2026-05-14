@@ -13,6 +13,18 @@ import { getHelpBanner } from "./banner.js";
 import { runCliStartupHooks } from "./startup.js";
 import { DEFAULT_API_HOST } from "../theme-preview/server/open-api-defaults.js";
 
+/** @param {unknown} err */
+function reportCliFatal(err) {
+  const msg =
+    err != null &&
+    typeof err === "object" &&
+    "message" in err &&
+    typeof /** @type {{ message?: unknown }} */ (err).message === "string"
+      ? String(/** @type {{ message: string }} */ (err).message)
+      : String(err);
+  console.error(msg);
+}
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8"));
 
@@ -87,4 +99,9 @@ program.on("--help", () => {
 });
 
 runCliStartupHooks({ currentVersion: pkg.version });
-program.parse();
+try {
+  await program.parseAsync(process.argv);
+} catch (err) {
+  reportCliFatal(err);
+  process.exit(1);
+}

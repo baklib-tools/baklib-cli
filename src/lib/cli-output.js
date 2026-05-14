@@ -44,10 +44,16 @@ function formatScalar(v) {
 
 /** @param {Record<string, unknown>} meta */
 function formatMetaHuman(meta) {
+  const total = meta.total_count;
+  const pageSize = meta.page_size;
+  const nextPage = meta.next_page;
+  if (total != null && nextPage == null && pageSize != null && Number(pageSize) >= Number(total)) {
+    return `共 ${total} 条`;
+  }
   const parts = [];
-  if (meta.total_count != null) parts.push(`共 ${meta.total_count} 条`);
-  if (meta.current_page != null && meta.page_size != null) {
-    parts.push(`第 ${meta.current_page} 页 · 每页 ${meta.page_size}`);
+  if (total != null) parts.push(`共 ${total} 条`);
+  if (meta.current_page != null && pageSize != null) {
+    parts.push(`第 ${meta.current_page} 页 · 每页 ${pageSize}`);
   }
   return parts.join(" · ");
 }
@@ -55,6 +61,9 @@ function formatMetaHuman(meta) {
 /** @param {Record<string, unknown>} attrs */
 function oneLineFromAttributes(attrs) {
   const bits = [];
+  if (attrs.scope != null && String(attrs.scope).trim() !== "") {
+    bits.push(String(attrs.scope).trim());
+  }
   const name = attrs.name ?? attrs.title ?? attrs.display_name;
   if (typeof name === "string" && name.trim()) bits.push(name.trim().replace(/\s+/g, " "));
   if (attrs.slug != null && attrs.slug !== "") bits.push(`slug: ${attrs.slug}`);
@@ -64,15 +73,44 @@ function oneLineFromAttributes(attrs) {
   return bits.join("  ·  ");
 }
 
+/** @param {string} t */
+function omitJsonApiTypeInHumanList(t) {
+  const n = (t || "").toLowerCase();
+  return n === "theme" || n === "themes";
+}
+
+/**
+ * 与 theme list 人类可读行一致（单条；id 至少 3 位宽以便与列表对齐）
+ * @param {{ id?: string|number, name?: string, scope?: string, updated_at?: unknown }} t
+ */
+export function formatThemeSummaryHumanLine(t) {
+  const idStr = String(t.id ?? "");
+  const idW = Math.max(3, idStr.length);
+  const idPadded = idStr.padStart(idW, " ");
+  const attrs = {
+    scope: t.scope,
+    name: t.name,
+    updated_at: t.updated_at,
+  };
+  const tail = oneLineFromAttributes(attrs);
+  const head = `[${idPadded}]`;
+  return tail ? `  ${head}  ${tail}` : `  ${head}`;
+}
+
 /** @param {unknown[]} items */
 function formatJsonApiList(items) {
   if (items.length === 0) return "（无数据）\n";
+  const resources = items.filter(isJsonApiResource);
+  const idWidth = resources.length ? Math.max(...resources.map((r) => String(r.id).length)) : 0;
+
   const lines = items.map((item) => {
     if (!isJsonApiResource(item)) {
       return `  ${formatScalar(item)}`;
     }
     const tail = oneLineFromAttributes(item.attributes);
-    const head = `[${item.id}] ${item.type}`;
+    const idPadded = String(item.id).padStart(idWidth, " ");
+    const typeStr = String(item.type || "");
+    const head = omitJsonApiTypeInHumanList(typeStr) ? `[${idPadded}]` : `[${idPadded}] ${typeStr}`;
     return tail ? `  ${head}  ${tail}` : `  ${head}`;
   });
   return `${lines.join("\n")}\n`;

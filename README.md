@@ -61,6 +61,27 @@ baklib theme dev --site-id <SITE_ID> --theme-dir ./themes/cms/my_theme
 
 浏览器打开终端输出的本地 URL；在 UI 中选择模板与页面，iframe 内为 Liquid 渲染结果。实现边界与自定义 Liquid 覆盖范围见 [docs/PLAN.md](docs/PLAN.md)。
 
+### 列出 / 查看 / 拉取模板
+
+- `theme list`：请求 `GET /themes?all=true`，**一次返回全部**模板（按服务端 `updated_at` **正序**：较早的在上方，**最近更新的在列表底部**），终端摘要为「共 N 条」。**默认**（不传 `--from`）为当前组织可选范围：**自有**、**他人已发布共享**与**官方公开**模板；`--from org` 仅自有，`--from public` 仅官方公开目录。
+- `theme show <id|scope/name>`：`GET /themes/:id`（`id` 可为 hashid、数字 id，或路径形式 `cms/guide`，斜杠需编码），展示 Git 仓库、分支/标签列表与数量、在用站点数等；人类可读首行与 `theme list` 行格式一致。**若 `scope/name` 同时命中多个可选模板**（例如组织自有与官方公开同名），接口返回 `themes` 数组，CLI 会逐条打印；后续 `pull` / manifest 须改用具体 **id**。
+- `theme pull <id|scope/name>`：清单逐文件下载（位置参数同 `show`）。**未指定版本时服务端默认 `main`**；无 `main` 时回退 `latest_version`。可用 `--version-name` / `--branch`、`tag:v1.0`、`--commit-oid`、`--version-id`。
+
+```bash
+baklib theme list
+baklib theme list --from org
+baklib theme list --from public
+baklib theme show 3
+baklib theme show cms/guide
+baklib theme pull <THEME_HASHID>
+baklib theme pull cms/guide --branch develop --yes --out ./my-theme
+baklib theme pull cms/guide --version-name tag:v1.0 --out ./rel
+```
+
+脚本或非交互拉取须加 `--yes`。交互环境下会先确认写入文件数与目标目录。
+
+可与官方示例仓库（如 [baklib-templates/blog](https://github.com/baklib-templates/blog)）对照：`git clone` 后 `checkout` 目标分支，再执行 `pull` 将对应版本同步到工作区。
+
 ## 数据与资源（节选）
 
 ```bash
