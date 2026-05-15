@@ -4,6 +4,7 @@ import path from "path";
 import { loadBaklibConfig, requireToken, resolveOpenApiBaseUrl } from "../config.js";
 import { createBaklibApi } from "../api/index.js";
 import { mergedOpts, printResult } from "../lib/cli-output.js";
+import { CLI_HELP_PAGE, CLI_HELP_PER_PAGE } from "../cli-help-locale.js";
 
 async function getApi(cmd) {
   const o = mergedOpts(cmd);
@@ -29,13 +30,13 @@ function bool(v) {
 }
 
 export function siteCommand() {
-  const site = new Command("site").description("站点与页面");
+  const site = new Command("site").description("站点、页面与标签（Open API 站点域）");
 
   site
     .command("list")
-    .description("列出站点")
-    .option("--page <n>")
-    .option("--per-page <n>")
+    .description("列出当前组织下的站点")
+    .option("--page <n>", CLI_HELP_PAGE)
+    .option("--per-page <n>", CLI_HELP_PER_PAGE)
     .action(async (opts, cmd) => {
       const api = await getApi(cmd);
       const out = await api.site.listSites({ page: num(opts.page), per_page: num(opts.perPage) });
@@ -59,11 +60,11 @@ export function siteCommand() {
     .description("列出页面")
     .requiredOption("--site-id <id>", "站点 ID")
     .option("--keywords <q>", "关键词")
-    .option("--parent-id <id>", "父页面")
-    .option("--published <bool>", "是否发布")
-    .option("--tags <tags>", "标签筛选")
-    .option("--page <n>")
-    .option("--per-page <n>")
+    .option("--parent-id <id>", "父页面 ID")
+    .option("--published <bool>", "是否已发布（true/false、1/0）")
+    .option("--tags <tags>", "标签筛选（服务端支持的格式）")
+    .option("--page <n>", CLI_HELP_PAGE)
+    .option("--per-page <n>", CLI_HELP_PER_PAGE)
     .option("--include-details", "包含详情（富文本 markdown）")
     .action(async (opts, cmd) => {
       const api = await getApi(cmd);
@@ -202,8 +203,8 @@ export function siteCommand() {
     .command("list")
     .description("列出标签")
     .requiredOption("--site-id <id>", "站点 ID")
-    .option("--page <n>")
-    .option("--per-page <n>")
+    .option("--page <n>", CLI_HELP_PAGE)
+    .option("--per-page <n>", CLI_HELP_PER_PAGE)
     .action(async (opts, cmd) => {
       const api = await getApi(cmd);
       const out = await api.site.listTags({

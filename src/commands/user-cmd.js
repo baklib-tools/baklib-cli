@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { loadBaklibConfig, requireToken, resolveOpenApiBaseUrl } from "../config.js";
 import { createBaklibApi } from "../api/index.js";
 import { mergedOpts, printResult } from "../lib/cli-output.js";
+import { CLI_HELP_PAGE, CLI_HELP_PER_PAGE } from "../cli-help-locale.js";
 
 async function getApi(cmd) {
   const o = mergedOpts(cmd);
@@ -18,18 +19,21 @@ function num(v) {
 }
 
 export function userCommand() {
-  const u = new Command("user").description("用户");
+  const u = new Command("user").description("当前账户与用户列表");
 
   u.command("list")
-    .option("--page <n>")
-    .option("--per-page <n>")
+    .description("分页列出用户")
+    .option("--page <n>", CLI_HELP_PAGE)
+    .option("--per-page <n>", CLI_HELP_PER_PAGE)
     .action(async (opts, cmd) => {
       const api = await getApi(cmd);
       const out = await api.user.listUsers({ page: num(opts.page), per_page: num(opts.perPage) });
       printResult(out, mergedOpts(cmd));
     });
 
-  u.command("me").action(async (_opts, cmd) => {
+  u.command("me")
+    .description("获取当前登录用户信息")
+    .action(async (_opts, cmd) => {
     const api = await getApi(cmd);
     const out = await api.user.getCurrent();
     printResult(out, mergedOpts(cmd));

@@ -75,7 +75,7 @@ export class BaklibClient {
   /**
    * @param {string} endpoint
    * @param {string} [method]
-   * @param {{ body?: object, formData?: import('form-data').default, query?: Record<string, unknown> }} [options]
+   * @param {{ body?: object, formData?: import('form-data').default, query?: Record<string, unknown>, acceptStatuses?: number[] }} [options]
    */
   async request(endpoint, method = "GET", options = {}) {
     const url = new URL(`${this.apiBase}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`);
@@ -113,8 +113,10 @@ export class BaklibClient {
     });
 
     const responseText = await response.text();
+    const acceptStatuses = options.acceptStatuses;
+    const okOrAccepted = response.ok || (Array.isArray(acceptStatuses) && acceptStatuses.includes(response.status));
 
-    if (!response.ok) {
+    if (!okOrAccepted) {
       traceLog(`HTTP error ${response.status} body`, responseText);
       throw new Error(friendlyHttpErrorMessage(response.status, responseText));
     }
@@ -132,7 +134,11 @@ export class BaklibClient {
     }
 
     try {
-      return JSON.parse(trimmed);
+      const out = JSON.parse(trimmed);
+      if (Array.isArray(acceptStatuses) && acceptStatuses.length) {
+        out._httpStatus = response.status;
+      }
+      return out;
     } catch {
       throw new Error(`Baklib API returned non-JSON (${response.status}): ${responseText.slice(0, 500)}`);
     }

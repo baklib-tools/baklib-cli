@@ -11,12 +11,13 @@
 
 1. 扩展 Liquid **SupportedSubset**（`form_tag`、`paginate_tag`、`query` 等，见 [baklib-theme-dev references](https://github.com/baklib-tools/skills/tree/main/skills/baklib-theme-dev/references)）。
 2. 评估抽取 `@baklib/open-api-client` 供多工具共用（当前：**方案 2 — CLI 内实现 + 惰性配置**）。
-3. Open API 若增加主题文件上传，增加 `baklib theme push`。
+3. Open API 若增加**主题库**文件上传（zip / Git 发布），再扩展 `baklib theme push` 或增加独立子命令承接正式上架。
 4. 主题预览：设备宽度 / 多路由 / 错误 overlay 增强。
 5. `kb pull` 支持批量（按目录树与 meta）。
 
 ## Done（倒序）
 
+- 2026-05-15：`theme push`：将本地主题按依赖写入 Open API **主题预览**会话缓存（原单次 `preview-sync` 能力）；`theme pull` 不再提供 `sync` 别名。
 - 2026-05-14：初版 `baklib-cli`：`dam` / `kb` / `site` / `theme` / `member` / `user` / `config`；`--json`；`kb pull|push`、`site pages pull`；`theme init` 脚手架；`theme dev`（Vite 预览 + middleware 拉 API + liquidjs）；`theme-preview/server/baklib-liquid-registry.js` 与单测；`dam-markdown-resolve` 单测。
 
 ## Decisions（ADR 摘要）
@@ -39,7 +40,7 @@
 
 ## 发布主题（无 Open API 写接口时）
 
-Open API 当前仅有 `GET /themes`，**无**主题文件上传。发布流程：在 Baklib 后台 / 组织模板管理中上传 zip 或绑定仓库主题；待 API 发布后由 CLI 承接 `theme push`。
+Open API 当前仅有 `GET /themes`，**无**主题 zip / 仓库的**正式发布**上传接口。`baklib theme push` 仅将文件写入 **主题预览**会话对应的服务端缓存（与 `theme dev` 面板内「同步模版到预览」同源），**不是**模板库上架。发布流程：在 Baklib 后台 / 组织模板管理中上传 zip 或绑定仓库主题；待 API 发布后由 CLI 承接正式上架。
 
 ## 维护约定
 

@@ -4,6 +4,7 @@ import path from "path";
 import { loadBaklibConfig, requireToken, resolveOpenApiBaseUrl } from "../config.js";
 import { createBaklibApi } from "../api/index.js";
 import { mergedOpts, printResult } from "../lib/cli-output.js";
+import { CLI_HELP_PAGE, CLI_HELP_PER_PAGE } from "../cli-help-locale.js";
 
 async function getApi(cmd) {
   const o = mergedOpts(cmd);
@@ -34,12 +35,12 @@ function parseFrontmatter(raw) {
 }
 
 export function kbCommand() {
-  const kb = new Command("kb").description("知识库 KB");
+  const kb = new Command("kb").description("知识库 KB（空间与文章）");
 
   kb.command("spaces")
-    .description("列出知识库")
-    .option("--page <n>")
-    .option("--per-page <n>")
+    .description("列出知识库空间")
+    .option("--page <n>", CLI_HELP_PAGE)
+    .option("--per-page <n>", CLI_HELP_PER_PAGE)
     .action(async (opts, cmd) => {
       const api = await getApi(cmd);
       const out = await api.kb.listKnowledgeBases({ page: num(opts.page), per_page: num(opts.perPage) });
@@ -47,8 +48,8 @@ export function kbCommand() {
     });
 
   kb.command("space")
-    .description("获取知识库详情")
-    .requiredOption("--space-id <id>", "知识库 ID")
+    .description("获取单个知识库空间详情")
+    .requiredOption("--space-id <id>", "知识库（空间）ID")
     .action(async (opts, cmd) => {
       const api = await getApi(cmd);
       const out = await api.kb.getKnowledgeBase({ space_id: opts.spaceId });
@@ -56,12 +57,12 @@ export function kbCommand() {
     });
 
   kb.command("articles")
-    .description("列出文章")
-    .requiredOption("--space-id <id>", "知识库 ID")
-    .option("--keywords <q>", "搜索")
-    .option("--parent-id <id>", "父文章")
-    .option("--page <n>")
-    .option("--per-page <n>")
+    .description("列出空间下的文章")
+    .requiredOption("--space-id <id>", "知识库（空间）ID")
+    .option("--keywords <q>", "关键词搜索")
+    .option("--parent-id <id>", "父文章 ID")
+    .option("--page <n>", CLI_HELP_PAGE)
+    .option("--per-page <n>", CLI_HELP_PER_PAGE)
     .action(async (opts, cmd) => {
       const api = await getApi(cmd);
       const out = await api.kb.listArticles({
@@ -75,8 +76,8 @@ export function kbCommand() {
     });
 
   kb.command("article")
-    .description("获取文章")
-    .requiredOption("--space-id <id>", "知识库 ID")
+    .description("获取单篇文章")
+    .requiredOption("--space-id <id>", "知识库（空间）ID")
     .requiredOption("--article-id <id>", "文章 ID")
     .action(async (opts, cmd) => {
       const api = await getApi(cmd);
@@ -86,11 +87,11 @@ export function kbCommand() {
 
   kb.command("create")
     .description("创建文章")
-    .requiredOption("--space-id <id>", "知识库 ID")
+    .requiredOption("--space-id <id>", "知识库（空间）ID")
     .requiredOption("--title <title>", "标题")
     .option("--body <markdown>", "正文")
-    .option("--parent-id <id>", "父文章")
-    .option("--position <p>", "排序")
+    .option("--parent-id <id>", "父文章 ID")
+    .option("--position <p>", "排序位置")
     .action(async (opts, cmd) => {
       const api = await getApi(cmd);
       const out = await api.kb.createArticle({
@@ -105,12 +106,12 @@ export function kbCommand() {
 
   kb.command("update")
     .description("更新文章")
-    .requiredOption("--space-id <id>", "知识库 ID")
+    .requiredOption("--space-id <id>", "知识库（空间）ID")
     .requiredOption("--article-id <id>", "文章 ID")
     .option("--title <title>", "标题")
     .option("--body <markdown>", "正文")
-    .option("--parent-id <id>", "父文章")
-    .option("--position <p>", "排序")
+    .option("--parent-id <id>", "父文章 ID")
+    .option("--position <p>", "排序位置")
     .action(async (opts, cmd) => {
       const api = await getApi(cmd);
       const out = await api.kb.updateArticle({
@@ -126,7 +127,7 @@ export function kbCommand() {
 
   kb.command("delete")
     .description("删除文章")
-    .requiredOption("--space-id <id>", "知识库 ID")
+    .requiredOption("--space-id <id>", "知识库（空间）ID")
     .requiredOption("--article-id <id>", "文章 ID")
     .action(async (opts, cmd) => {
       const api = await getApi(cmd);
@@ -136,7 +137,7 @@ export function kbCommand() {
 
   kb.command("pull")
     .description("将单篇文章导出为 Markdown（含 YAML frontmatter）")
-    .requiredOption("--space-id <id>", "知识库 ID")
+    .requiredOption("--space-id <id>", "知识库（空间）ID")
     .requiredOption("--article-id <id>", "文章 ID")
     .requiredOption("--out <path>", "输出文件路径")
     .action(async (opts, cmd) => {

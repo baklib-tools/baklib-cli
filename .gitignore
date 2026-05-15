@@ -5,6 +5,8 @@ dist/
 .env
 .env.*
 theme-preview/node_modules/
+theme-preview/dist/
+*.tgz
 
 # 本地项目配置（可能含 token，勿入库）
 .baklib/

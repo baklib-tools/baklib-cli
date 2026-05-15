@@ -6,7 +6,11 @@ import path from "path";
 import { fileURLToPath, pathToFileURL } from "url";
 import { loadBaklibConfig, requireToken, resolveOpenApiBaseUrl, openApiHostFromResolvedBase } from "../config.js";
 import { createBaklibApi } from "../api/index.js";
+import { themePreviewSessionIdFromResponse } from "../api/ops-theme-preview.js";
 import { mergedOpts, printResult, formatThemeSummaryHumanLine } from "../lib/cli-output.js";
+import { resolveThemePullRoots } from "../lib/theme-pull-paths.js";
+import { buildThemePreviewFilesMap } from "../lib/theme-preview-liquid-deps.js";
+import { resolvePreviewLocale } from "../lib/theme-preview-locale.js";
 
 async function getApi(cmd) {
   const o = mergedOpts(cmd);
@@ -31,9 +35,11 @@ function packageRoot() {
 /** @param {string} cwd */
 function readGitMeta(cwd) {
   try {
+    const inside = execFileSync("git", ["rev-parse", "--is-inside-work-tree"], { cwd, encoding: "utf8" }).trim();
+    if (inside !== "true") return null;
     const branch = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd, encoding: "utf8" }).trim();
     const head = execFileSync("git", ["rev-parse", "HEAD"], { cwd, encoding: "utf8" }).trim();
-    return { branch, head };
+    return { insideWorkTree: true, branch, head };
   } catch {
     return null;
   }
@@ -70,6 +76,25 @@ function ttyProgress(p) {
   const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
   const tail = p.path.length > 52 ? `…${p.path.slice(-52)}` : p.path;
   process.stdout.write(`\r下载 [${p.done}/${p.total}] ${pct}%  ${tail.padEnd(55, " ").slice(0, 55)}`);
+}
+
+/**
+ * @param {boolean} jsonMode
+ * @param {unknown} manifestOid
+ * @param {{ head?: string } | null} git
+ * @returns {string[]}
+ */
+function themePullHeadWarnings(jsonMode, manifestOid, git) {
+  const oid = typeof manifestOid === "string" ? manifestOid.trim() : "";
+  const head = git?.head && String(git.head).trim();
+  if (!oid || !head) return [];
+  const na = oid.toLowerCase().replace(/\s/g, "");
+  const nb = head.toLowerCase().replace(/\s/g, "");
+  const [short, long] = na.length <= nb.length ? [na, nb] : [nb, na];
+  if (long.startsWith(short)) return [];
+  const msg = `本地 Git HEAD（${head.slice(0, 7)}）与清单版本 commit_oid（${oid.slice(0, 7)}）不一致；若以平台版本为准可忽略`;
+  if (!jsonMode) console.error(msg);
+  return [msg];
 }
 
 /** @param {Record<string, unknown>} t */
@@ -162,7 +187,7 @@ const SCAFFOLD_FILES = {
 };
 
 export function themeCommand() {
-  const theme = new Command("theme").description("模板 / 主题");
+  const theme = new Command("theme").description("站点模板 / 主题：列出与拉取、推送预览缓存、脚手架、本地开发预览");
 
   theme
     .command("list")
@@ -215,30 +240,31 @@ export function themeCommand() {
 
   theme
     .command("pull")
-    .description("按清单逐文件下载主题版本（默认 main 分支；可用 --version-name / --branch 或 tag:v1 指定）")
+    .description("按清单逐文件下载主题版本（默认 main；可用 --version-name / --branch 或 tag:v1）")
     .argument("<theme>", "主题 hashid / 数字 id，或 scope/name（如 cms/guide）")
-    .option("--out <dir>", "输出根目录", process.cwd())
+    .option("--dir <path>", "主题 Git 工作区根；指定时默认写入同一路径（可用 --out 覆盖）")
+    .option("--out <dir>", "输出根目录；未指定时与 --dir 或当前工作目录一致")
     .option("--version-id <id>", "Theme::Version hashid")
     .option("--version-name <name>", "分支名 / 标签名，或 branch:main / tag:v1.0（未指定时服务端默认 main）")
     .option("--branch <name>", "同 --version-name，便于指定分支")
     .option("--commit-oid <oid>", "Git commit oid")
     .option("--commit-hash <hash>", "commit hash")
-    .option("--use-git-branch", "在 --out 目录执行 git，使用当前分支名作为 version_name")
+    .option("--use-git-branch", "在 Git 工作区根（见 --dir）读取当前分支名作为 version_name")
     .option("--concurrency <n>", "并发下载数", "4")
     .option("-y, --yes", "跳过写入前确认（非交互环境必须使用）")
     .action(async (themeArg, opts, cmd) => {
       const api = await getApi(cmd);
       const m = mergedOpts(cmd);
-      const outRoot = path.resolve(opts.out);
+      const { outRoot, gitRoot } = resolveThemePullRoots({ dir: opts.dir, out: opts.out }, process.cwd());
 
       const themeRef = themeArg && String(themeArg).trim();
       if (!themeRef) throw new Error("请指定主题，例如: baklib theme pull 3 或 baklib theme pull cms/guide");
 
       let versionName = opts.versionName || opts.branch;
       if (opts.useGitBranch) {
-        const g = readGitMeta(outRoot);
-        if (!g?.branch || g.branch === "HEAD") {
-          throw new Error("当前目录不是 git 仓库或未检出分支，无法使用 --use-git-branch");
+        const g = readGitMeta(gitRoot);
+        if (!g?.insideWorkTree || !g.branch || g.branch === "HEAD") {
+          throw new Error("Git 工作区根下不是 git 仓库或未检出分支，无法使用 --use-git-branch（请检查 --dir / --out）");
         }
         versionName = g.branch;
       }
@@ -253,9 +279,21 @@ export function themeCommand() {
       const mfRes = await api.theme.getThemeManifest(manifestArgs);
       const manifest = mfRes.manifest;
       const files = Array.isArray(manifest.files) ? manifest.files : [];
-      const gitMeta = readGitMeta(outRoot);
+      const gitMeta = readGitMeta(gitRoot);
+      const warnings = themePullHeadWarnings(m.json, manifest.version?.commit_oid, gitMeta);
 
-      if (!m.json) {
+      if (m.json) {
+        console.error(
+          JSON.stringify({
+            type: "baklib_theme_pull_manifest",
+            theme: manifest.theme,
+            version: manifest.version,
+            file_count: files.length,
+            out: outRoot,
+            git_root: gitRoot,
+          }),
+        );
+      } else {
         console.error(
           `主题 ${manifest.theme?.name} (${manifest.theme?.scope}) · 版本 ${manifest.version?.label || manifest.version?.id} · 共 ${files.length} 个文件 → ${outRoot}`,
         );
@@ -279,14 +317,35 @@ export function themeCommand() {
 
       const conc = num(opts.concurrency) ?? 4;
       const errors = [];
+      /** @type {{ path: string, ok: boolean, bytes?: number, error?: string }[]} */
+      const fileResults = [];
       let progressChain = Promise.resolve();
       let completed = 0;
 
-      /** @param {string} rel */
-      const bump = (rel) => {
+      /**
+       * @param {string} displayPath
+       * @param {{ path: string, ok: boolean, bytes?: number, error?: string }} entry
+       */
+      const bump = (displayPath, entry) => {
         progressChain = progressChain.then(() => {
           completed += 1;
-          ttyProgress({ done: completed, total: files.length, path: rel });
+          fileResults.push(entry);
+          if (m.json) {
+            console.error(
+              JSON.stringify({
+                type: "baklib_theme_pull_progress",
+                done: completed,
+                total: files.length,
+                path: entry.path,
+                ok: entry.ok,
+                bytes: entry.bytes,
+                error: entry.error,
+              }),
+            );
+          } else if (!process.stdout.isTTY) {
+            console.error(`[theme pull] ${completed}/${files.length} ${displayPath}`);
+          }
+          ttyProgress({ done: completed, total: files.length, path: displayPath });
         });
         return progressChain;
       };
@@ -297,10 +356,11 @@ export function themeCommand() {
           const dest = path.join(outRoot, f.path);
           await fs.mkdir(path.dirname(dest), { recursive: true });
           await fs.writeFile(dest, buf);
-          await bump(f.path);
+          await bump(f.path, { path: f.path, ok: true, bytes: buf.byteLength });
         } catch (e) {
-          errors.push({ path: f.path, message: e instanceof Error ? e.message : String(e) });
-          await bump(`${f.path} (失败)`);
+          const message = e instanceof Error ? e.message : String(e);
+          errors.push({ path: f.path, message });
+          await bump(`${f.path} (失败)`, { path: f.path, ok: false, error: message });
         }
       });
 
@@ -312,7 +372,10 @@ export function themeCommand() {
         theme_id: manifest.theme?.id,
         version: manifest.version,
         git: gitMeta,
+        git_root: gitRoot,
+        out: outRoot,
         errors,
+        warnings,
       };
       await fs.writeFile(path.join(outRoot, ".baklib-theme.json"), JSON.stringify(sidecar, null, 2), "utf8");
 
@@ -320,15 +383,78 @@ export function themeCommand() {
         success: errors.length === 0,
         ok: errors.length === 0,
         out: outRoot,
+        git_root: gitRoot,
         theme: manifest.theme,
         version: manifest.version,
         file_count: files.length,
         files: m.json ? files : undefined,
+        file_results: m.json ? fileResults : undefined,
+        warnings: warnings.length ? warnings : undefined,
         errors,
         git: gitMeta,
       };
       printResult(result, m);
       if (errors.length) process.exitCode = 1;
+    });
+
+  theme
+    .command("push")
+    .description(
+      "将本地主题按入口 Liquid 依赖 + 当前语言 locales 经 Open API 上传到 Baklib「主题预览」服务端缓存（供路径预览等）。非模板库正式发布；上架版本请走组织后台或 Git。",
+    )
+    .option("--theme-dir <path>", "主题根目录（默认 cwd）", process.cwd())
+    .option("--entry <rel>", "入口模板（相对主题根）", "templates/index.liquid")
+    .option("--locale <tag>", "locales 语言标签（未传则从 LANG/LC_ALL 推导）")
+    .option("--site-id <id>", "与 --page-id 同时传入时额外请求服务端渲染 HTML")
+    .option("--page-id <id>", "页面 id / hashid（与 --site-id 同时传入时用 preview_render 拉一段服务端 HTML，需能从 Open API 读到 full_path）")
+    .option("--keep-session", "上传完成后保留预览会话（默认删除）")
+    .action(async (opts, cmd) => {
+      const api = await getApi(cmd);
+      const m = mergedOpts(cmd);
+      const themeRootResolved = path.resolve(opts.themeDir);
+      const locale = resolvePreviewLocale(opts.locale);
+      const entryRel = opts.entry || "templates/index.liquid";
+      const sess = await api.themePreview.createSession();
+      const sessionId = themePreviewSessionIdFromResponse(sess);
+      if (!sessionId) {
+        throw new Error(`创建预览会话失败：响应中无 session_id。请使用 BAKLIB_CLI_TRACE=1 重试并核对 Open API 地址与版本。响应: ${JSON.stringify(sess)}`);
+      }
+      const files = await buildThemePreviewFilesMap({
+        themeRoot: themeRootResolved,
+        entryRel,
+        locale,
+      });
+      const sync = await api.themePreview.sync({ sessionId, files });
+      /** @type {Record<string, unknown>} */
+      const out = {
+        success: true,
+        session_id: sessionId,
+        expires_in: sess.expires_in,
+        synced: sync.synced,
+        paths: Object.keys(files),
+      };
+      if (opts.siteId && opts.pageId) {
+        const detail = await api.site.getPage({ site_id: String(opts.siteId), page_id: String(opts.pageId) });
+        const attrs = detail.full_response?.data?.attributes || detail.data?.attributes || {};
+        const raw = attrs.full_path ?? attrs["full-path"];
+        if (raw == null || String(raw).trim() === "") {
+          throw new Error("无法从页面详情读取 full_path，请核对 --site-id 与 --page-id（须为可访问的页面 id / hashid）。");
+        }
+        let pagePath = String(raw).trim();
+        if (!pagePath.startsWith("/")) pagePath = `/${pagePath}`;
+        if (pagePath.length > 1 && pagePath.endsWith("/")) pagePath = pagePath.slice(0, -1);
+        const rendered = await api.themePreview.previewRender({
+          sessionId,
+          site_id: String(opts.siteId),
+          path: pagePath || "/",
+        });
+        out.html_length = typeof rendered.html === "string" ? rendered.html.length : 0;
+      }
+      if (!opts.keepSession) {
+        await api.themePreview.deleteSession({ sessionId });
+        out.session_deleted = true;
+      }
+      printResult(out, m);
     });
 
   theme
@@ -361,7 +487,7 @@ export function themeCommand() {
         {
           ok: true,
           path: root,
-          next: "运行: baklib theme dev --theme-dir " + root + " --site-id <你的站点ID>",
+          next: "运行: baklib theme dev --theme-dir " + root + "（在 /!/theme-admin-panel 中选择站点并开启同步）",
         },
         mergedOpts(cmd),
       );
@@ -369,10 +495,9 @@ export function themeCommand() {
 
   theme
     .command("dev")
-    .description("启动本地主题预览（Vite + React + Liquid，需 Token）")
-    .requiredOption("--site-id <id>", "用于拉取 fixture 的站点 ID")
+    .description("启动本地主题开发（控制面板；在面板中开启预览同步后会话 + 路径 HTML 预览）")
     .option("--theme-dir <path>", "主题根目录（默认 cwd）", process.cwd())
-    .option("--port <n>", "端口", "5174")
+    .option("--port <n>", "开发服务器监听端口", "5174")
     .action(async (opts, cmd) => {
       const cfg = await loadBaklibConfig();
       const m = mergedOpts(cmd);
@@ -380,26 +505,51 @@ export function themeCommand() {
       requireToken(cfg);
       process.env.BAKLIB_TOKEN = cfg.token;
       process.env.BAKLIB_API_BASE = openApiHostFromResolvedBase(cfg.apiBase);
-      process.env.BAKLIB_PREVIEW_SITE_ID = opts.siteId;
-      process.env.BAKLIB_THEME_DIR = path.resolve(opts.themeDir);
+      delete process.env.BAKLIB_PREVIEW_SITE_ID;
+      const themeRootResolved = path.resolve(opts.themeDir);
+      process.env.BAKLIB_THEME_DIR = themeRootResolved;
+      const locale = resolvePreviewLocale(undefined);
+      const entryRel = "templates/index.liquid";
+      process.env.BAKLIB_PREVIEW_ENTRY = entryRel;
+      process.env.BAKLIB_PREVIEW_LOCALE = locale;
       const port = num(opts.port) ?? 5174;
+
       const { createServer } = await import("vite");
-      const react = (await import("@vitejs/plugin-react")).default;
-      const pluginUrl = pathToFileURL(path.join(packageRoot(), "theme-preview", "vite-plugin-preview.js")).href;
-      const { baklibPreviewPlugin } = await import(pluginUrl);
       const root = path.join(packageRoot(), "theme-preview");
       const server = await createServer({
         root,
-        configFile: false,
-        plugins: [react(), baklibPreviewPlugin()],
+        configFile: path.join(root, "vite.config.ts"),
+        appType: "spa",
         server: {
           port,
           strictPort: false,
-          fs: { allow: [packageRoot(), path.resolve(opts.themeDir)] },
+          fs: { allow: [packageRoot(), themeRootResolved] },
         },
       });
       await server.listen();
       server.printUrls();
+      const addr = server.httpServer?.address?.();
+      const listenPort =
+        typeof addr === "object" && addr && typeof addr.port === "number" ? addr.port : port;
+      process.env.BAKLIB_PREVIEW_ORIGIN = `http://127.0.0.1:${listenPort}`;
+      if (!m.json) {
+        console.error(`[theme-preview] 管理面板: http://localhost:${listenPort}/!/theme-admin-panel`);
+        console.error(
+          "[theme-preview] 启动完成：请在管理面板右侧打开「同步模版到预览」以创建会话并上传主题",
+        );
+      }
+
+      const previewRuntimePath = path.join(packageRoot(), "theme-preview/server/preview-sync-runtime.js");
+      const { shutdownPreviewSyncRuntime } = await import(pathToFileURL(previewRuntimePath).href);
+
+      const onShutdown = async () => {
+        await shutdownPreviewSyncRuntime();
+        await server.close();
+      };
+
+      process.once("SIGINT", () => {
+        onShutdown().finally(() => process.exit(0));
+      });
     });
 
   return theme;

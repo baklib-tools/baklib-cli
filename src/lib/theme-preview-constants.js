@@ -1,0 +1,4 @@
+/** 与 baklib ThemePreview::DevCache 对齐，供 CLI 预估与报错 */
+export const THEME_PREVIEW_MAX_FILES = 20;
+export const THEME_PREVIEW_MAX_FILE_BYTES = 2 * 1024 * 1024;
+export const THEME_PREVIEW_MAX_TOTAL_BYTES = 20 * 1024 * 1024;

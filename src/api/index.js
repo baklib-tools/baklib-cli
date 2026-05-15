@@ -3,6 +3,7 @@ import { createDamOps } from "./ops-dam.js";
 import { createKbOps } from "./ops-kb.js";
 import { createSiteOps } from "./ops-site.js";
 import { createThemeOps } from "./ops-theme.js";
+import { createThemePreviewOps } from "./ops-theme-preview.js";
 import { createMemberOps } from "./ops-member.js";
 import { createUserOps } from "./ops-user.js";
 
@@ -17,6 +18,7 @@ export function createBaklibApi(config) {
     kb: createKbOps(client),
     site: createSiteOps(client),
     theme: createThemeOps(client),
+    themePreview: createThemePreviewOps(client),
     member: createMemberOps(client),
     user: createUserOps(client),
   };

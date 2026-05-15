@@ -49,23 +49,62 @@ baklib config show
 
 全局选项：`--json`（机器可读 JSON；**默认**为面向终端的简要文本）、`-B / --api-base <url>`。
 
-## 主题开发（优先）
+## 主题与本地模版开发
+
+面向 `themes/` 下 Liquid 模版：在**本机**跑开发服，通过 Open API 把允许路径内的文件写入服务端 **主题预览**缓存，由 **Baklib** 执行 `preview_render` 得到与线上一致的 HTML（无需本地 Rails）。实现边界与路线图另见 [docs/PLAN.md](docs/PLAN.md)；预览协议、代理与 `422` 排查见 **[docs/theme-preview.md](docs/theme-preview.md)**。
+
+### 1. 准备
+
+- 已 [安装](#安装) 并 `npm link`（或全局安装发布包），本机 **Node ≥ 20**。
+- 已 [配置](#配置) `baklib config set-token` / `set-api-base`（或 `BAKLIB_TOKEN`、`BAKLIB_API_BASE`）。**无 Token 时 `theme dev` 无法调 Open API。**
+
+### 2. 脚手架（可选）
 
 ```bash
-# 脚手架（themes/<scope>/<name>/）
+# 生成 themes/<scope>/<name>/ 最小骨架
 baklib theme init cms my_theme
-
-# 本地预览（需 Token；--site-id 用于拉取 fixture）
-baklib theme dev --site-id <SITE_ID> --theme-dir ./themes/cms/my_theme
 ```
 
-浏览器打开终端输出的本地 URL；在 UI 中选择模板与页面，iframe 内为 Liquid 渲染结果。实现边界与自定义 Liquid 覆盖范围见 [docs/PLAN.md](docs/PLAN.md)。
+### 3. 本地开发服务器 `theme dev`
+
+```bash
+cd /path/to/your-theme
+baklib theme dev --theme-dir .
+# 可选：baklib theme dev --theme-dir . --port 5175
+```
+
+1. 终端会打印 **管理面板**地址（形如 `http://127.0.0.1:5174/!/theme-admin-panel`），用浏览器打开。  
+2. 左侧 **刷新站点列表** 并 **选择站点**；指纹资源回源可用站点 `portal_url`，或本机设置 **`BAKLIB_PORTAL_ORIGIN`**。  
+3. 右侧底部打开 **「同步模版到预览」**：创建预览会话、按入口 `templates/index.liquid` 解析依赖并上传主题，之后可 **监听文件变更** 防抖同步。  
+4. 中间区域为 **远端页面**、**静态页面**（`statics/` → `/s/…`）、**本地页面**；开启同步后 **点击标题** 可在新标签中打开当前路径的 **服务端 HTML 预览**（非 iframe 嵌入）。
+
+默认语言包与 `theme push` 一致，从 **`LANG` / `LC_ALL`** 推导；可在面板内切换语言。`theme dev --help` 仅列出 `--theme-dir` 与 `--port`。
+
+### 4. 单次上传（不经面板）
+
+```bash
+baklib theme push --theme-dir ./themes/cms/my_theme --entry templates/index.liquid --locale zh-CN
+```
+
+用于脚本或 CI 单次写入预览缓存；可选 `--site-id` + `--page-id` 校验 `preview_render` 返回的 HTML 长度等（见 `baklib theme push --help`）。
+
+### 5. 发布本 CLI 到 npm（维护者）
+
+```bash
+npm test && npm run build
+# 更新 package.json 版本号与 CHANGELOG.md 后
+npm publish --access public
+```
+
+`prepublishOnly` 已配置为自动 `npm run build`。
 
 ### 列出 / 查看 / 拉取模板
 
 - `theme list`：请求 `GET /themes?all=true`，**一次返回全部**模板（按服务端 `updated_at` **正序**：较早的在上方，**最近更新的在列表底部**），终端摘要为「共 N 条」。**默认**（不传 `--from`）为当前组织可选范围：**自有**、**他人已发布共享**与**官方公开**模板；`--from org` 仅自有，`--from public` 仅官方公开目录。
 - `theme show <id|scope/name>`：`GET /themes/:id`（`id` 可为 hashid、数字 id，或路径形式 `cms/guide`，斜杠需编码），展示 Git 仓库、分支/标签列表与数量、在用站点数等；人类可读首行与 `theme list` 行格式一致。**若 `scope/name` 同时命中多个可选模板**（例如组织自有与官方公开同名），接口返回 `themes` 数组，CLI 会逐条打印；后续 `pull` / manifest 须改用具体 **id**。
 - `theme pull <id|scope/name>`：清单逐文件下载（位置参数同 `show`）。**未指定版本时服务端默认 `main`**；无 `main` 时回退 `latest_version`。可用 `--version-name` / `--branch`、`tag:v1.0`、`--commit-oid`、`--version-id`。
+- **`--dir <path>`**：把「主题 Git 仓库根」与**默认写入目录**设为该路径（仍在该目录读 `git rev-parse`）；若同时需要写到别处，用 **`--out`** 覆盖输出目录（Git 仍在 `--dir`）。
+- **`--json`**：`theme pull` 在拉取过程中会向 **stderr** 打印 NDJSON 行：`type: baklib_theme_pull_manifest`（拿到清单后）与 `type: baklib_theme_pull_progress`（每文件完成一条）；**stdout** 仍为收尾一条汇总 JSON（含 `file_results`、`warnings` 等）。
 
 ```bash
 baklib theme list
@@ -76,13 +115,14 @@ baklib theme show cms/guide
 baklib theme pull <THEME_HASHID>
 baklib theme pull cms/guide --branch develop --yes --out ./my-theme
 baklib theme pull cms/guide --version-name tag:v1.0 --out ./rel
+# 在克隆的模板仓库内与平台某分支对齐（先 git checkout 目标分支）
+git clone https://github.com/baklib-templates/blog.git && cd blog
+baklib theme pull cms/blog --dir . --use-git-branch --yes
 ```
 
+说明：**非 TTY** 下人类模式会逐文件向 stderr 输出 `[theme pull] i/n path`；**TTY** 下为单行进度条。若本地 `HEAD` 与清单 `commit_oid` 不一致，人类模式 stderr 会提示，**`--json`** 时写入结果里的 `warnings`。
+
 脚本或非交互拉取须加 `--yes`。交互环境下会先确认写入文件数与目标目录。
-
-可与官方示例仓库（如 [baklib-templates/blog](https://github.com/baklib-templates/blog)）对照：`git clone` 后 `checkout` 目标分支，再执行 `pull` 将对应版本同步到工作区。
-
-## 数据与资源（节选）
 
 ```bash
 baklib --json site list

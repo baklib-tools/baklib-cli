@@ -15,7 +15,7 @@ import {
 import { mergedOpts, printResult } from "../lib/cli-output.js";
 
 export function configCommand() {
-  const c = new Command("config").description("查看或写入本地配置");
+  const c = new Command("config").description("查看或写入本地 baklib.json（用户级 ~/.config/baklib/ 或项目 .baklib/；纯本地）");
 
   c.command("show")
     .description("显示当前 Open API 主机、解析后的请求基址（…/api/v1）与 Token 状态（不回显完整 Token）")

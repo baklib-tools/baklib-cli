@@ -29,7 +29,7 @@ function bool(v) {
 }
 
 export function damCommand() {
-  const dam = new Command("dam").description("资源库 DAM");
+  const dam = new Command("dam").description("资源库 DAM：文件、片段、链接与合集");
 
   dam
     .command("upload")
@@ -182,9 +182,9 @@ export function damCommand() {
   dam
     .command("collections")
     .description("列出合集")
-    .option("--name-eq <name>", "q[name_eq]")
-    .option("--name-cont <name>", "q[name_cont]")
-    .option("--parent-id <id>", "q[parent_id_eq]")
+    .option("--name-eq <name>", "名称精确匹配（q[name_eq]）")
+    .option("--name-cont <name>", "名称包含（q[name_cont]）")
+    .option("--parent-id <id>", "父合集 ID（q[parent_id_eq]）")
     .option("--page <n>", "页码")
     .option("--per-page <n>", "每页条数")
     .action(async (opts, cmd) => {
