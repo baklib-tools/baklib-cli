@@ -1,3 +1,5 @@
+import { injectPreviewLiveReloadScript } from "./preview-live-reload.js";
+
 /**
  * 将服务端返回 HTML 中指向主题静态资源的路径改写到本地 __theme_asset。
  * 规则保守：明显主题 assets；以及预览阶段将外链 https 改写到同源 __baklib_proxy。
@@ -115,5 +117,6 @@ export function rewriteHttpsForPreviewProxy(html) {
 export function rewritePreviewHtml(html) {
   let out = rewriteThemeHtmlForLocalAssets(html);
   out = rewriteHttpsForPreviewProxy(out);
+  out = injectPreviewLiveReloadScript(out);
   return out;
 }

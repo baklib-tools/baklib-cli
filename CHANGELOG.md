@@ -2,6 +2,12 @@
 
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.4.1] - 2026-05-16
+
+### 新增
+
+- CLI 启动时按自然日最多向 npm registry 检查一次 `@baklib/baklib-cli` 新版本；若有更新则在 stderr 提示升级命令（状态缓存在 `~/.cache/baklib-cli/version-check-state.json`）。可用环境变量 **`BAKLIB_SKIP_VERSION_CHECK=1`** 关闭；仅执行 `baklib --version` / `-V` 时不检查。
+
 ## [0.4.0] - 2026-05-16
 
 ### 新增

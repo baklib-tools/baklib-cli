@@ -5,6 +5,7 @@
 import { watch } from "node:fs";
 import path from "node:path";
 import { getPanelSyncOptions } from "./panel-sync-options.js";
+import { notifyPreviewTemplateSynced } from "./preview-live-reload.js";
 
 /** @type {number} */
 let lastSyncedFileCount = 0;
@@ -315,6 +316,7 @@ export async function startPreviewSyncRuntime() {
           await api.themePreview.sync({ sessionId: sessionId, files: f });
           lastSyncedFileCount = Object.keys(f).length;
           previewSyncLog(`增量同步完成（${Object.keys(f).length} 个文件）`);
+          notifyPreviewTemplateSynced();
         } catch (e) {
           const msg = String(e?.message || e);
           previewSyncLog(`同步失败：${msg}`);
@@ -389,6 +391,7 @@ export function resyncPreviewSessionFromPanel() {
       await api.themePreview.sync({ sessionId, files: f });
       lastSyncedFileCount = Object.keys(f).length;
       previewSyncLog(`重新同步完成（${Object.keys(f).length} 个文件）`);
+      notifyPreviewTemplateSynced();
     } catch (e) {
       previewSyncLog(`重新同步失败：${String(e?.message || e)}`);
     }

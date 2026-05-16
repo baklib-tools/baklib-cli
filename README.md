@@ -57,6 +57,10 @@ baklib config show
 
 全局选项：`--json`（机器可读 JSON；**默认**为面向终端的简要文本）、`-B / --api-base <url>`。
 
+**版本更新提示**：每次启动 CLI（除仅 `baklib --version` / `-V` 外）会按自然日最多向 npm 检查一次是否有新版本；若有则在 stderr 提示 `npm i -g @baklib/baklib-cli`。设置 **`BAKLIB_SKIP_VERSION_CHECK=1`** 可关闭（亦见 `baklib config --help` 环境变量说明）。
+
+**预览热刷新**：开启「同步模版到预览」后，在浏览器中打开站点路径进行预览；保存主题文件触发增量同步完成后，预览页会在可配置延迟（默认 **1 秒**，`--reload-delay`）后通过 **DOM morph** 更新页面（保留滚动位置；详见 [docs/theme-preview.md](docs/theme-preview.md)）。
+
 ## 主题与本地模版开发
 
 面向主题目录下的 Liquid 模版（`baklib theme init` 会在当前目录生成 `./<scope>--<name>/`）：在**本机**跑开发服，通过 Open API 把允许路径内的文件写入服务端 **主题预览**缓存，由 **Baklib** 执行 `preview_render` 得到与线上一致的 HTML（无需本地 Rails）。实现边界与路线图另见 [docs/PLAN.md](docs/PLAN.md)；预览协议、代理与 `422` 排查见 **[docs/theme-preview.md](docs/theme-preview.md)**。
@@ -86,7 +90,7 @@ baklib theme dev
 3. 右侧底部打开 **「同步模版到预览」**：创建预览会话、按入口 `templates/index.liquid` 解析依赖并上传主题，之后可 **监听文件变更** 防抖同步。  
 4. 中间区域为 **远端页面**、**静态页面**（`statics/` → `/s/…`）、**本地页面**；开启同步后 **点击标题** 可在新标签中打开当前路径的 **服务端 HTML 预览**（非 iframe 嵌入）。
 
-默认语言包与 `theme push` 一致，从 **`LANG` / `LC_ALL`** 推导；可在面板内切换语言。`theme dev --help` 列出 `--theme-dir`、`--port`、`--recopy-preview`。
+默认语言包与 `theme push` 一致，从 **`LANG` / `LC_ALL`** 推导；可在面板内切换语言。`theme dev --help` 列出 `--theme-dir`、`--port`、`--reload-delay`、`--recopy-preview`。
 
 首次运行或升级 CLI 后，`theme dev` 会把预览前端与解析用源码同步到用户缓存下的工作台（默认 `~/.cache/baklib-cli/<包版本>/`；若设置了 **`XDG_CACHE_HOME`** 则使用 `$XDG_CACHE_HOME/baklib-cli/<包版本>/`），并在该目录根与 `theme-preview/` 各执行一次 `npm install`（根目录用于 `src/api` 的 `form-data` 等依赖解析），可能需要数十秒。若需无视指纹强制从安装包重拷工作台，可加 **`--recopy-preview`**。
 

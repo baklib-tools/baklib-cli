@@ -39,5 +39,13 @@ test("rewritePreviewHtml maps https /assets/ to __theme_asset", () => {
 
 test("rewritePreviewHtml leaves already-rewritten references", () => {
   const html = '<a href="/__theme_asset/assets/x.css"><img src="/__baklib_proxy?url=x"></a>';
-  assert.equal(rewritePreviewHtml(html), rewriteThemeHtmlForLocalAssets(html));
+  const base = rewriteThemeHtmlForLocalAssets(html);
+  const withReload = `${base}<script src="/__baklib_live_reload/client.js" defer></script>`;
+  assert.equal(rewritePreviewHtml(html), withReload);
+});
+
+test("rewritePreviewHtml injects live reload script before </body>", () => {
+  const html = "<!doctype html><html><body><p>hi</p></body></html>";
+  const out = rewritePreviewHtml(html);
+  assert.match(out, /<script src="\/__baklib_live_reload\/client\.js" defer><\/script><\/body>/i);
 });

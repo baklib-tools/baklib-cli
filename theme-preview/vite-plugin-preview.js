@@ -22,6 +22,8 @@ import {
 import { applyDevStateToPanelEnv } from "./server/apply-dev-state-to-panel.js";
 import { jsonApiDataArray, jsonApiRowsToRemotePageRows } from "./server/jsonapi-pages.js";
 import { isPreviewRenderDashScopePath } from "./server/preview-dash-routes.js";
+import { themeAssetRelFromThemeAssetsDashPath } from "./server/theme-assets-dash-path.js";
+import { handlePreviewLiveReloadRequest } from "./server/preview-live-reload.js";
 import { enrichLocalPageWithRemoteDetail } from "./server/preview-local-page-enrich.js";
 import { THEME_PREVIEW_ADMIN_PANEL_PATH as ADMIN_PANEL_PATH } from "../src/lib/theme-preview-constants.js";
 
@@ -113,6 +115,13 @@ export function baklibPreviewPlugin() {
             return;
           }
 
+          if (urlPath.startsWith("/__baklib_live_reload/")) {
+            if (handlePreviewLiveReloadRequest(req, res, urlPath)) return;
+            res.statusCode = 404;
+            res.end("Not found");
+            return;
+          }
+
           if (urlPath.startsWith("/__theme_asset/")) {
             await serveThemeAsset(req, res, rawUrl);
             return;
@@ -158,6 +167,10 @@ export function baklibPreviewPlugin() {
           if (req.method === "GET" && urlPath.startsWith("/-/")) {
             const usePreviewRender = isPreviewRenderDashScopePath(urlPath) && previewSessionActive();
             if (!usePreviewRender) {
+              if (urlPath.startsWith("/-/theme-assets/")) {
+                const served = await tryServeThemeAssetsDashLocally(req, res, rawUrl);
+                if (served) return;
+              }
               await servePortalDashPath(req, res, rawUrl);
               return;
             }
@@ -491,6 +504,29 @@ async function handleSitePathPreview(req, res, urlPath) {
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   pushAccessLine(`${req.method} ${urlPath} → ${httpStatus} (preview_render path=${pathNorm})`);
   res.end(html);
+}
+
+/**
+ * `/-/theme-assets/…`：优先读本地主题 `assets/`（与线上一致的路径 token），缺失时再回源门户。
+ * @returns {Promise<boolean>} 已处理（含 404）时 true；无法解析路径时 false，由调用方回源
+ */
+async function tryServeThemeAssetsDashLocally(req, res, rawUrl) {
+  const themeDir = process.env.BAKLIB_THEME_DIR;
+  if (!themeDir) return false;
+
+  const urlPath = rawUrl.split("?")[0] || "";
+  const assetRel = themeAssetRelFromThemeAssetsDashPath(urlPath);
+  if (assetRel == null) return false;
+
+  const localFile = safeThemeFile(themeDir, `assets/${assetRel}`);
+  if (!localFile || !fs.existsSync(localFile)) return false;
+
+  res.statusCode = 200;
+  res.setHeader("Content-Type", guessMime(localFile));
+  res.setHeader("Cache-Control", "private, max-age=0");
+  fs.createReadStream(localFile).pipe(res);
+  pushAccessLine(`${req.method} ${urlPath} → 200 (/-/theme-assets local assets/${assetRel})`);
+  return true;
 }
 
 /**

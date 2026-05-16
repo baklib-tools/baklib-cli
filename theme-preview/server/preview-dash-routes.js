@@ -1,7 +1,8 @@
 /**
  * 与 Baklib `ThemePreview::PreviewRender#try_render_portal_scope_path!` 中处理的
  * `config/routes/site_portal.rb` scope '-' Liquid 页路径保持一致。
- * 其余 `/-/…`（如 active_storage、theme-assets、dam 等）由开发服向门户回源。
+ * 其余 `/-/…`（如 active_storage、dam 等）由开发服向门户回源；
+ * `/-/theme-assets/…` 在本地存在对应 `assets/` 文件时优先读主题目录，否则再回源。
  */
 
 /** @param {string} urlPath path 或带 query 的 raw 片段 */

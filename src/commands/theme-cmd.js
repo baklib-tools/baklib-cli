@@ -551,6 +551,11 @@ export function themeCommand() {
       "--recopy-preview",
       "删除当前包版本在用户缓存下的 theme dev 工作台，从安装包重新复制 theme-preview、src/lib、src/api 并重新 npm install（排障或强制同步本地改动到缓存时可用）",
     )
+    .option(
+      "--reload-delay <seconds>",
+      "预览页在模板同步成功后热更新的延迟（秒，默认 1）；也可用环境变量 BAKLIB_PREVIEW_RELOAD_DELAY_MS",
+      "1",
+    )
     .action(async (opts, cmd) => {
       const cfg = await loadBaklibConfig();
       const m = mergedOpts(cmd);
@@ -565,6 +570,10 @@ export function themeCommand() {
       const entryRel = "templates/index.liquid";
       process.env.BAKLIB_PREVIEW_ENTRY = entryRel;
       process.env.BAKLIB_PREVIEW_LOCALE = locale;
+      const reloadDelaySec = Number(opts.reloadDelay);
+      if (Number.isFinite(reloadDelaySec) && reloadDelaySec >= 0) {
+        process.env.BAKLIB_PREVIEW_RELOAD_DELAY_MS = String(Math.round(reloadDelaySec * 1000));
+      }
       const port = num(opts.port) ?? 5174;
 
       const { workspaceRoot, themePreviewRoot } = await ensureThemePreviewWorkspace({

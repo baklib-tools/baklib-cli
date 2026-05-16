@@ -22,7 +22,9 @@ Baklib Open API（需与实现该接口的 **Baklib 应用**版本一致）：
 
 返回的 HTML 会经本地中间件改写：
 
-- 主题内 **`/assets/`** 等静态路径 → 同源 **`/__theme_asset/`**（映射到本地主题目录）；  
+- 主题内 **`/assets/`** 等静态路径 → 同源 **`/__theme_asset/`**（映射到本地主题目录）；
+- **预览页热刷新**：`preview_render` 返回的 HTML 会注入 `__baklib_live_reload` 客户端；目录监控或面板触发**增量同步**成功后，通过 SSE 通知已打开的预览标签页，在可配置延迟（默认 **1 秒**，`baklib theme dev --reload-delay <秒>` 或 `BAKLIB_PREVIEW_RELOAD_DELAY_MS`）后使用 **morphdom** 拉取当前 URL 的 HTML 并 morph `body`（尽量保留滚动条与输入焦点）；morphdom 不可用时回退为 `location.reload()`。
+- 门户 **`/-/theme-assets/{token}--{sig}/…`**（token 内 JSON 的 `path` 相对 `assets/`）→ 开发服优先读本地 **`assets/{path}`**，缺失时再向门户回源；  
 - 外链 **`https://…`**（含协议相对 **`//…`**）→ 若路径为 **`/assets/…`** 则同样走 **`/__theme_asset/`**；否则走同源 **`/__baklib_proxy?url=<编码后的 https URL>`**，由开发服务器代拉取，减轻浏览器跨域与防盗链问题。代理仅允许 **GET**、**https**、无凭据 URL，并对目标主机做 **DNS 解析校验（禁止解析到私网/本地地址）**，超时与响应体大小有上限（见 `theme-preview/server/upstream-proxy.js`）。
 
 ## 前置条件
