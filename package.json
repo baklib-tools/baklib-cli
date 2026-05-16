@@ -1,10 +1,13 @@
 {
-  "name": "baklib-cli",
-  "version": "0.2.0",
+  "name": "@baklib/baklib-cli",
+  "version": "0.3.0",
   "description": "Baklib Open API CLI — 数据录入、主题本地预览（API + React + Liquid）",
   "type": "module",
   "bin": {
     "baklib": "dist/index.js"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "files": [
     "dist",
@@ -57,6 +60,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/baklib/baklib-cli.git"
+    "url": "https://github.com/baklib-tools/baklib-cli.git"
+  },
+  "homepage": "https://github.com/baklib-tools/baklib-cli#readme",
+  "bugs": {
+    "url": "https://github.com/baklib-tools/baklib-cli/issues"
   }
 }

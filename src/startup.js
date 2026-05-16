@@ -1,4 +1,4 @@
-import { fetchNpmLatestVersion } from "./lib/npmLatestVersion.js";
+import { fetchNpmLatestVersion, NPM_PUBLISHED_NAME } from "./lib/npmLatestVersion.js";
 import { loadUpdateState, patchUpdateState } from "./lib/cliUpdateState.js";
 import { semverGt } from "./lib/semverGt.js";
 import { localCalendarDay } from "./lib/localCalendarDay.js";
@@ -13,7 +13,7 @@ function printPendingUpdateNotice(currentVersion) {
   }
   console.error("");
   console.error(
-    `[baklib-cli] 有新版本 ${pending}（当前 ${currentVersion}）。可执行：npm i -g baklib-cli`,
+    `[baklib-cli] 有新版本 ${pending}（当前 ${currentVersion}）。可执行：npm i -g ${NPM_PUBLISHED_NAME}`,
   );
   console.error("");
   patchUpdateState({ pendingNotifyVersion: "" });
@@ -28,7 +28,7 @@ function scheduleDailyNpmVersionCheck(currentVersion) {
     void (async () => {
       let latest;
       try {
-        latest = await fetchNpmLatestVersion("baklib-cli");
+        latest = await fetchNpmLatestVersion();
       } catch {
         patchUpdateState({ lastCheckDay: today });
         return;

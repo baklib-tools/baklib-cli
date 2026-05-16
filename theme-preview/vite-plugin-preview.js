@@ -25,8 +25,7 @@ import { applyDevStateToPanelEnv } from "./server/apply-dev-state-to-panel.js";
 import { jsonApiDataArray, jsonApiRowsToRemotePageRows } from "./server/jsonapi-pages.js";
 import { isPreviewRenderDashScopePath } from "./server/preview-dash-routes.js";
 import { enrichLocalPageWithRemoteDetail } from "./server/preview-local-page-enrich.js";
-
-const ADMIN_PANEL_PATH = "/!/theme-admin-panel";
+import { THEME_PREVIEW_ADMIN_PANEL_PATH as ADMIN_PANEL_PATH } from "../src/lib/theme-preview-constants.js";
 
 const MAX_ACCESS_LOG = 250;
 /** @type {string[]} */

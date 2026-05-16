@@ -63,8 +63,7 @@ import {
   buildPreviewLogTimeline,
   previewLogDataFingerprint,
 } from "@/lib/preview-log-timeline"
-
-const ADMIN_PATH = "/!/theme-admin-panel"
+import { THEME_PREVIEW_ADMIN_PANEL_PATH as ADMIN_PATH } from "../../src/lib/theme-preview-constants.js"
 
 function sameStringSet(a: string[], b: string[]) {
   if (a.length !== b.length) return false

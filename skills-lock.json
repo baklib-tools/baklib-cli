@@ -1,12 +1,6 @@
 {
   "version": 1,
   "skills": {
-    "baklib-theme-dev": {
-      "source": "baklib-tools/skills",
-      "sourceType": "github",
-      "skillPath": "skills/baklib-theme-dev/SKILL.md",
-      "computedHash": "d1bb660e641050d81bc89a5732105b5d7262ffeff37217ef516bc8f54f80731f"
-    },
     "coss": {
       "source": "cosscom/coss",
       "sourceType": "github",

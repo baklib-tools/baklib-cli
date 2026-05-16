@@ -11,6 +11,7 @@ import { mergedOpts, printResult, formatThemeSummaryHumanLine } from "../lib/cli
 import { resolveThemePullRoots } from "../lib/theme-pull-paths.js";
 import { buildThemePreviewFilesMap } from "../lib/theme-preview-liquid-deps.js";
 import { resolvePreviewLocale } from "../lib/theme-preview-locale.js";
+import { THEME_PREVIEW_ADMIN_PANEL_PATH } from "../lib/theme-preview-constants.js";
 
 async function getApi(cmd) {
   const o = mergedOpts(cmd);
@@ -30,6 +31,35 @@ function packageRoot() {
   const d = path.dirname(fileURLToPath(import.meta.url));
   if (path.basename(d) === "dist") return path.join(d, "..");
   return path.resolve(d, "..", "..");
+}
+
+/** 主题目录相对当前工作目录的展示路径（如 cms--vcard/） */
+function themeInitDirDisplayRelative(themeRootAbs) {
+  const cwd = process.cwd();
+  const abs = path.resolve(themeRootAbs);
+  let rel = path.relative(cwd, abs);
+  rel = rel.split(path.sep).join("/");
+  if (!rel || rel.startsWith("..")) {
+    rel = path.basename(abs);
+  }
+  return rel.endsWith("/") ? rel : `${rel}/`;
+}
+
+/** @param {string} themeRootAbs */
+function printThemeInitSuccessHuman(themeRootAbs) {
+  const sub = themeInitDirDisplayRelative(themeRootAbs);
+  const cdTarget = sub.replace(/\/$/, "");
+  console.log("主题初始化成功。");
+  console.log(`已在当前目录下创建子目录 ${sub}`);
+  console.log("");
+  console.log("若尚未安装主题模版开发技能（baklib-theme-dev），请在本目录执行：");
+  console.log("    baklib skill install");
+  console.log("");
+  console.log("请进入模版目录后执行本地预览：");
+  console.log(`    cd ./${cdTarget}`);
+  console.log("    baklib theme dev");
+  console.log(`（启动后在终端提示的地址打开管理面板 ${THEME_PREVIEW_ADMIN_PANEL_PATH}，选择站点并开启同步）`);
+  console.log("");
 }
 
 /** @param {string} cwd */
@@ -181,17 +211,17 @@ const SCAFFOLD_FILES = {
   "locales/zh-CN.json": () => JSON.stringify({}, null, 2),
   "locales/en.json": () => JSON.stringify({}, null, 2),
   "src/stylesheets/application.css": () => `body { font-family: system-ui, sans-serif; margin: 1rem; }`,
-  "README.md": (name, scope) => `# ${name} (${scope})\n\n使用 \`baklib theme dev --theme-dir .\` 在本地预览。\n`,
+  "README.md": (name, scope) => `# ${name} (${scope})\n\n进入本目录后执行 \`baklib theme dev\` 在本地预览。\n`,
   "package.json": (name) =>
     JSON.stringify({ name: `baklib-theme-${name}`, private: true, version: "0.0.1", scripts: {} }, null, 2),
 };
 
 export function themeCommand() {
-  const theme = new Command("theme").description("站点模板 / 主题：列出与拉取、推送预览缓存、脚手架、本地开发预览");
+  const theme = new Command("theme").description("站点模板：列表、详情、拉取、预览上传、脚手架与本地开发");
 
   theme
     .command("list")
-    .description("列出模板（全量；GET /themes?all=true）")
+    .description("列出平台模板")
     .option("--from <org|public>", "默认不传：自有+已发布共享+官方；org 仅自有；public 仅官方")
     .option("--scope <cms|wiki>", "应用类型")
     .action(async (opts, cmd) => {
@@ -205,7 +235,7 @@ export function themeCommand() {
 
   theme
     .command("show")
-    .description("查看模板详情；scope/name 若命中多个会列出全部，请再用 id 指定")
+    .description("查看模板详情")
     .argument("<theme>", "主题 hashid / 数字 id，或 scope/name（如 cms/guide）")
     .action(async (themeArg, opts, cmd) => {
       const api = await getApi(cmd);
@@ -240,7 +270,7 @@ export function themeCommand() {
 
   theme
     .command("pull")
-    .description("按清单逐文件下载主题版本（默认 main；可用 --version-name / --branch 或 tag:v1）")
+    .description("下载主题文件到本地")
     .argument("<theme>", "主题 hashid / 数字 id，或 scope/name（如 cms/guide）")
     .option("--dir <path>", "主题 Git 工作区根；指定时默认写入同一路径（可用 --out 覆盖）")
     .option("--out <dir>", "输出根目录；未指定时与 --dir 或当前工作目录一致")
@@ -399,15 +429,13 @@ export function themeCommand() {
 
   theme
     .command("push")
-    .description(
-      "将本地主题按入口 Liquid 依赖 + 当前语言 locales 经 Open API 上传到 Baklib「主题预览」服务端缓存（供路径预览等）。非模板库正式发布；上架版本请走组织后台或 Git。",
-    )
+    .description("将本地主题上传到服务端预览缓存（非正式上架）")
     .option("--theme-dir <path>", "主题根目录（默认 cwd）", process.cwd())
     .option("--entry <rel>", "入口模板（相对主题根）", "templates/index.liquid")
-    .option("--locale <tag>", "locales 语言标签（未传则从 LANG/LC_ALL 推导）")
-    .option("--site-id <id>", "与 --page-id 同时传入时额外请求服务端渲染 HTML")
-    .option("--page-id <id>", "页面 id / hashid（与 --site-id 同时传入时用 preview_render 拉一段服务端 HTML，需能从 Open API 读到 full_path）")
-    .option("--keep-session", "上传完成后保留预览会话（默认删除）")
+    .option("--locale <tag>", "locales 语言（默认从 LANG 推导）")
+    .option("--site-id <id>", "与 --page-id 联用：校验预览 HTML")
+    .option("--page-id <id>", "与 --site-id 联用：校验预览 HTML")
+    .option("--keep-session", "保留预览会话（默认结束后删除）")
     .action(async (opts, cmd) => {
       const api = await getApi(cmd);
       const m = mergedOpts(cmd);
@@ -459,15 +487,28 @@ export function themeCommand() {
 
   theme
     .command("init")
-    .description("新建主题目录骨架 themes/<scope>/<name>/")
-    .argument("<scope>", "cms | wiki | community")
-    .argument("<name>", "主题名（小写、数字、下划线）")
+    .description("在当前目录创建 <scope>--<name>/ 主题骨架")
+    .argument("[scope]", "cms | wiki | community")
+    .argument("[name]", "主题名（小写、数字、下划线）")
     .option("--force", "目录非空时仍写入文件")
-    .action(async (scope, name, opts, cmd) => {
+    .addHelpText("after", "\n在当前目录创建 `<scope>--<name>/`（如 `cms--vcard/`）。技能需单独安装，见 `baklib skill install`。\n示例: baklib theme init cms vcard\n")
+    .action(async (scopeRaw, nameRaw, opts, cmd) => {
+      const scope = typeof scopeRaw === "string" ? scopeRaw.trim() : "";
+      const name = typeof nameRaw === "string" ? nameRaw.trim() : "";
+      if (!scope || !name) {
+        console.error("");
+        console.error("错误：请指定 scope 与 name。");
+        console.error("  用法: baklib theme init <scope> <name>");
+        console.error("  scope: cms | wiki | community");
+        console.error("  name:  3–50 字符，仅小写字母、数字、下划线");
+        console.error("  示例: baklib theme init cms vcard  →  目录 ./cms--vcard/");
+        console.error("");
+        process.exit(1);
+      }
       const valid = /^(cms|wiki|community)$/.test(scope);
       if (!valid) throw new Error("scope 须为 cms、wiki 或 community");
       if (!/^[a-z0-9_]{3,50}$/.test(name)) throw new Error("主题名须 3–50 字符，仅小写字母、数字、下划线");
-      const root = path.join(process.cwd(), "themes", scope, name);
+      const root = path.join(process.cwd(), `${scope}--${name}`);
       await fs.mkdir(root, { recursive: true });
       for (const [rel, fn] of Object.entries(SCAFFOLD_FILES)) {
         const full = path.join(root, rel);
@@ -483,19 +524,28 @@ export function themeCommand() {
         const content = typeof fn === "function" ? fn(name, scope) : fn;
         await fs.writeFile(full, content, "utf8");
       }
-      printResult(
-        {
-          ok: true,
-          path: root,
-          next: "运行: baklib theme dev --theme-dir " + root + "（在 /!/theme-admin-panel 中选择站点并开启同步）",
-        },
-        mergedOpts(cmd),
-      );
+      const m = mergedOpts(cmd);
+      const subRel = themeInitDirDisplayRelative(root).replace(/\/$/, "");
+      if (m.json) {
+        printResult(
+          {
+            message: "主题初始化成功",
+            theme_subdirectory: subRel,
+            install_skill_if_needed: "baklib skill install",
+            cd: `cd ./${subRel}`,
+            dev: "baklib theme dev",
+            admin_panel_path: THEME_PREVIEW_ADMIN_PANEL_PATH,
+          },
+          m,
+        );
+      } else {
+        printThemeInitSuccessHuman(root);
+      }
     });
 
   theme
     .command("dev")
-    .description("启动本地主题开发（控制面板；在面板中开启预览同步后会话 + 路径 HTML 预览）")
+    .description("启动本地主题预览与开发面板")
     .option("--theme-dir <path>", "主题根目录（默认 cwd）", process.cwd())
     .option("--port <n>", "开发服务器监听端口", "5174")
     .action(async (opts, cmd) => {
@@ -533,7 +583,9 @@ export function themeCommand() {
         typeof addr === "object" && addr && typeof addr.port === "number" ? addr.port : port;
       process.env.BAKLIB_PREVIEW_ORIGIN = `http://127.0.0.1:${listenPort}`;
       if (!m.json) {
-        console.error(`[theme-preview] 管理面板: http://localhost:${listenPort}/!/theme-admin-panel`);
+        console.error(
+          `[theme-preview] 管理面板: http://localhost:${listenPort}${THEME_PREVIEW_ADMIN_PANEL_PATH}`,
+        );
         console.error(
           "[theme-preview] 启动完成：请在管理面板右侧打开「同步模版到预览」以创建会话并上传主题",
         );

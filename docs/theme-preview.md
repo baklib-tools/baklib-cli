@@ -4,7 +4,7 @@
 
 ## 分步交付说明
 
-1. **控制面板**：`baklib theme dev` 提供 **`/!/theme-admin-panel`** 及配套 API（站点/页面只读列表、开发态存储）。  
+1. **控制面板**：`baklib theme dev` 提供 **`/!admin`** 及配套 API（站点/页面只读列表、开发态存储）。  
 2. **预览会话与路径 HTML 预览**：在面板**右侧底部**打开「**同步模版到预览**」后，开发服务器会**创建预览会话**、上传主题并开始监听目录变更；并注入 **`BAKLIB_PREVIEW_SESSION_ID`** 以启用 **`preview_render`** 路径预览。关闭开关会**删除会话**并停止监听。若单独运行 Vite（不经 CLI），则无会话：根路径 `/` **302** 到管理面板，站点路径也不会由中间件渲染。
 
 ## 路径预览 API（`preview_render`）
@@ -65,7 +65,7 @@ baklib theme push --theme-dir . --keep-session
 
 - **Open API 凭据**：与 `theme pull` 等相同；`theme dev` 会读 `baklib config` 或环境变量。  
 - **预览会话**：默认**不会**自动创建；在管理面板右侧打开「**同步模版到预览**」后创建会话、上传主题并监听文件变更（防抖再同步）；关闭开关会删除会话。进程退出时也会尝试删除活跃会话。  
-- **站点 / 门户回源**：在 **`/!/theme-admin-panel`** 中选择站点；指纹资源等回源使用所选站点的 `portal_url`，或环境变量 **`BAKLIB_PORTAL_ORIGIN`**。  
+- **站点 / 门户回源**：在 **`/!admin`** 中选择站点；指纹资源等回源使用所选站点的 `portal_url`，或环境变量 **`BAKLIB_PORTAL_ORIGIN`**。  
 - **首次同步组包**：入口固定为 **`templates/index.liquid`**；`locales` 语言在未在面板中指定时，与 `theme push` 一致从 **`LANG` / `LC_ALL`** 推导（见 `src/lib/theme-preview-locale.js`），面板内可再选语言。  
 - **路径 HTML 预览**：有预览会话时，除面板与静态资源外的 **GET 路径** 由中间件调用 `preview_render`，并对 HTML 做 **`/__theme_asset/`** 与 **`/__baklib_proxy`** 改写（见上文）。无会话时，根路径 `/` **302** 到管理面板。  
 - **静态页路径**：面板 **「静态页面」** 列出主题目录 **`statics/**/*.liquid`** 对应的 **`/s/…`** 预览链接（服务端须支持该路径的 `preview_render` 渲染）。

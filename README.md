@@ -1,8 +1,16 @@
-# baklib-cli
+# @baklib/baklib-cli
 
-面向 [Baklib](https://www.baklib.com) Open API 的独立命令行工具：覆盖常用 Open API 能力，并支持**本地主题预览**（API 拉取站点数据 + Vite/React 壳 + Liquid 渲染），便于在无本地 Rails 环境下开发 `themes/` 下模板。
+面向 [Baklib](https://www.baklib.com) Open API 的独立命令行工具：覆盖常用 Open API 能力，并支持**本地主题预览**（API 拉取站点数据 + Vite/React 壳 + Liquid 渲染），便于在无本地 Rails 环境下开发 Baklib 站点模板。
 
 ## 安装
+
+自 npm 安装（发布后）：
+
+```bash
+npm install -g @baklib/baklib-cli
+```
+
+从源码开发：
 
 ```bash
 cd baklib-cli
@@ -51,7 +59,7 @@ baklib config show
 
 ## 主题与本地模版开发
 
-面向 `themes/` 下 Liquid 模版：在**本机**跑开发服，通过 Open API 把允许路径内的文件写入服务端 **主题预览**缓存，由 **Baklib** 执行 `preview_render` 得到与线上一致的 HTML（无需本地 Rails）。实现边界与路线图另见 [docs/PLAN.md](docs/PLAN.md)；预览协议、代理与 `422` 排查见 **[docs/theme-preview.md](docs/theme-preview.md)**。
+面向主题目录下的 Liquid 模版（`baklib theme init` 会在当前目录生成 `./<scope>--<name>/`）：在**本机**跑开发服，通过 Open API 把允许路径内的文件写入服务端 **主题预览**缓存，由 **Baklib** 执行 `preview_render` 得到与线上一致的 HTML（无需本地 Rails）。实现边界与路线图另见 [docs/PLAN.md](docs/PLAN.md)；预览协议、代理与 `422` 排查见 **[docs/theme-preview.md](docs/theme-preview.md)**。
 
 ### 1. 准备
 
@@ -61,19 +69,19 @@ baklib config show
 ### 2. 脚手架（可选）
 
 ```bash
-# 生成 themes/<scope>/<name>/ 最小骨架
-baklib theme init cms my_theme
+# 生成 <scope>--<name>/ 最小骨架（如 cms--vcard/）；技能请另执行 baklib skill install
+baklib theme init cms vcard
 ```
 
 ### 3. 本地开发服务器 `theme dev`
 
 ```bash
 cd /path/to/your-theme
-baklib theme dev --theme-dir .
-# 可选：baklib theme dev --theme-dir . --port 5175
+baklib theme dev
+# 可选：baklib theme dev --port 5175
 ```
 
-1. 终端会打印 **管理面板**地址（形如 `http://127.0.0.1:5174/!/theme-admin-panel`），用浏览器打开。  
+1. 终端会打印 **管理面板**地址（形如 `http://127.0.0.1:5174/!admin`），用浏览器打开。  
 2. 左侧 **刷新站点列表** 并 **选择站点**；指纹资源回源可用站点 `portal_url`，或本机设置 **`BAKLIB_PORTAL_ORIGIN`**。  
 3. 右侧底部打开 **「同步模版到预览」**：创建预览会话、按入口 `templates/index.liquid` 解析依赖并上传主题，之后可 **监听文件变更** 防抖同步。  
 4. 中间区域为 **远端页面**、**静态页面**（`statics/` → `/s/…`）、**本地页面**；开启同步后 **点击标题** 可在新标签中打开当前路径的 **服务端 HTML 预览**（非 iframe 嵌入）。
@@ -83,7 +91,7 @@ baklib theme dev --theme-dir .
 ### 4. 单次上传（不经面板）
 
 ```bash
-baklib theme push --theme-dir ./themes/cms/my_theme --entry templates/index.liquid --locale zh-CN
+baklib theme push --theme-dir ./cms--my_theme --entry templates/index.liquid --locale zh-CN
 ```
 
 用于脚本或 CI 单次写入预览缓存；可选 `--site-id` + `--page-id` 校验 `preview_render` 返回的 HTML 长度等（见 `baklib theme push --help`）。

@@ -77,5 +77,19 @@ export function configCommand() {
       printResult(r, mergedOpts(cmd));
     });
 
+  c.addHelpText(
+    "after",
+    () =>
+      [
+        "",
+        "凭据与主机：可用子命令写入配置文件，也可用环境变量覆盖（与文件合并时环境变量优先）。",
+        `  BAKLIB_TOKEN — API Token；BAKLIB_API_BASE — 主机根（默认 ${DEFAULT_API_HOST}；CLI 请求固定追加 /api/v1）。`,
+        "",
+        "配置文件：自当前目录向上查找 <项目>/.baklib/baklib.json，并与用户级 ~/.config/baklib/baklib.json 合并。",
+        "",
+        "其它 CLI 环境变量：BAKLIB_SKIP_VERSION_CHECK=1（跳过 npm 版本提示）、BAKLIB_NO_BANNER=1（帮助前不显示 Logo）。",
+      ].join("\n"),
+  );
+
   return c;
 }

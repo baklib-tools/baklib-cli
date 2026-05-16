@@ -6,7 +6,7 @@
 
 ### 新增
 
-- 主题本地开发：`baklib theme dev` 内置 Vite 管理面板（`/!/theme-admin-panel`）、预览会话与路径 HTML（`preview_render`）、同源 `__baklib_proxy` / `__theme_asset` 等中间件能力。
+- 主题本地开发：`baklib theme dev` 内置 Vite 管理面板（`/!admin`）、预览会话与路径 HTML（`preview_render`）、同源 `__baklib_proxy` / `__theme_asset` 等中间件能力。
 - 开发面板：远端页面树、**静态页面**（`statics/**/*.liquid` → `/s/…`）、**本地页面**分区；与 Open API 对齐的站点 `site_id` 解析。
 - `docs/theme-preview.md`：主题预览上传、故障排查与 API 约定说明。
 
