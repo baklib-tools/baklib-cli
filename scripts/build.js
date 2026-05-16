@@ -28,7 +28,6 @@ async function build() {
       "@vitejs/plugin-react",
       "react",
       "react-dom",
-      "liquidjs",
     ],
   });
 

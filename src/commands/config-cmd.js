@@ -18,7 +18,7 @@ export function configCommand() {
   const c = new Command("config").description("查看或写入本地 baklib.json（用户级 ~/.config/baklib/ 或项目 .baklib/；纯本地）");
 
   c.command("show")
-    .description("显示当前 Open API 主机、解析后的请求基址（…/api/v1）与 Token 状态（不回显完整 Token）")
+    .description("显示当前 Open API 主机与 Token 状态（不回显完整 Token）及配置文件路径")
     .action(async (_opts, cmd) => {
       const cfg = await loadBaklibConfig();
       const o = mergedOpts(cmd);
@@ -27,10 +27,8 @@ export function configCommand() {
       printResult(
         {
           apiHost: openApiHostFromResolvedBase(cfg.apiBase),
-          apiBase: cfg.apiBase,
           tokenConfigured: Boolean(cfg.token),
           tokenPreview: cfg.token ? `${cfg.token.slice(0, 6)}…(${cfg.token.length} chars)` : null,
-          defaultApiHost: DEFAULT_API_HOST,
           userBaklibJson: getUserBaklibJsonPath(),
           projectBaklibJson: projectJson,
         },

@@ -184,9 +184,7 @@ export function formatHumanResult(data) {
     const proj = o.projectBaklibJson == null ? "（无）" : String(o.projectBaklibJson);
     return [
       `API 主机: ${o.apiHost}`,
-      `请求基址: ${o.apiBase}`,
       `Token: ${o.tokenConfigured ? o.tokenPreview : "（未配置）"}`,
-      `默认主机: ${o.defaultApiHost}`,
       `用户配置: ${o.userBaklibJson}`,
       `项目配置: ${proj}`,
       "",

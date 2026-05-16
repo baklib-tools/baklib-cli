@@ -1,7 +1,7 @@
 {
   "name": "@baklib/baklib-cli",
-  "version": "0.3.0",
-  "description": "Baklib Open API CLI — 数据录入、主题本地预览（API + React + Liquid）",
+  "version": "0.4.1",
+  "description": "Baklib Open API CLI — 数据录入、主题本地预览（Open API + Vite/React 面板）",
   "type": "module",
   "bin": {
     "baklib": "dist/index.js"
@@ -12,6 +12,7 @@
   "files": [
     "dist",
     "theme-preview",
+    "src/",
     "README.md",
     "CHANGELOG.md",
     "docs"
@@ -33,7 +34,6 @@
     "clsx": "^2.1.1",
     "commander": "^12.1.0",
     "form-data": "^4.0.0",
-    "liquidjs": "^10.21.1",
     "lucide-react": "^1.16.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

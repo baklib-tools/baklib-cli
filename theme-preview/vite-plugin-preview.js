@@ -1,7 +1,5 @@
 import path from "node:path";
 import fs from "node:fs";
-import { buildPreviewAssigns } from "./server/fetch-fixture.js";
-import { renderThemeTemplate } from "./server/render-theme.js";
 import { rewritePreviewHtml } from "./server/html-rewrite.js";
 import { getPortalRawForDev, resolvePortalAssetUrl } from "./server/portal-asset-url.js";
 import { fetchUrlWithDiskCache } from "./server/remote-asset-cache.js";
@@ -211,6 +209,7 @@ export function baklibPreviewPlugin() {
  */
 async function handleApiBaklib(req, res, rawUrl) {
   const urlPath = rawUrl.split("?")[0] || "";
+  try {
 
   if (urlPath === "/api/baklib/preview-sync-state" && req.method === "GET") {
     res.setHeader("Content-Type", "application/json");
@@ -327,43 +326,6 @@ async function handleApiBaklib(req, res, rawUrl) {
     return;
   }
 
-  if (urlPath === "/api/baklib/fixture" && req.method === "GET") {
-    const siteId = process.env.BAKLIB_PREVIEW_SITE_ID;
-    if (!siteId) {
-      res.statusCode = 500;
-      res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify({ error: "BAKLIB_PREVIEW_SITE_ID missing" }));
-      return;
-    }
-    const q = parseQuery(rawUrl);
-    const assigns = await buildPreviewAssigns(siteId, q.page_id);
-    res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify({ assigns }));
-    return;
-  }
-
-  if (urlPath === "/api/baklib/render" && req.method === "GET") {
-    const siteId = process.env.BAKLIB_PREVIEW_SITE_ID;
-    const themeDir = process.env.BAKLIB_THEME_DIR;
-    if (!siteId || !themeDir) {
-      res.statusCode = 500;
-      res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify({ error: "site or theme dir missing" }));
-      return;
-    }
-    const q = parseQuery(rawUrl);
-    const assigns = await buildPreviewAssigns(siteId, q.page_id);
-    const templateRel = q.template || "templates/page.liquid";
-    const html = await renderThemeTemplate({
-      themeRoot: path.resolve(themeDir),
-      templateRel,
-      assigns,
-    });
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.end(html);
-    return;
-  }
-
   if (urlPath === "/api/baklib/sites" && req.method === "GET") {
     const api = await getBaklibApi();
     const r = await api.site.listSites({ per_page: 50 });
@@ -455,6 +417,14 @@ async function handleApiBaklib(req, res, rawUrl) {
   res.statusCode = 404;
   res.setHeader("Content-Type", "application/json");
   res.end(JSON.stringify({ error: "unknown api" }));
+  } catch (e) {
+    const msg = String(e?.message || e);
+    if (!res.headersSent) {
+      res.statusCode = 500;
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.end(JSON.stringify({ error: msg }));
+    }
+  }
 }
 
 /**

@@ -2,6 +2,23 @@
 
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.4.0] - 2026-05-16
+
+### 新增
+
+- `baklib theme dev --recopy-preview`：无视指纹强制删除并重建用户缓存下的预览工作台（重新复制 `theme-preview`、`src/lib`、`src/api` 并执行 npm install）。
+
+### 变更
+
+- `theme dev`：将预览工作台 materialize 到用户缓存目录（默认 `~/.cache/baklib-cli/<版本>/`；支持 `XDG_CACHE_HOME`），避免从全局 `node_modules` 内直接启动 Vite 带来的解析问题。
+- 工作台在 **`theme-preview/` 与缓存根各执行一次** `npm install`：根目录安装 `form-data` 等，供动态加载的 `src/api/*` 正确解析。
+- `baklib config show`：人类可读与 `--json` 输出均不再包含「请求基址」「默认主机」字段。
+
+### 修复
+
+- 预览中间件 `/api/baklib/*` 异常时改为返回 **JSON**（`{ "error": "…" }`），避免管理面板将纯文本误判为 JSON 而报错。
+- 移除未接入面板的 Node 侧 `liquidjs` 本地渲染路径及相关文件，减轻依赖与缓存安装负担；主题 Liquid 仍以服务端 `preview_render` 为准。
+
 ## [0.2.0] - 2026-05-15
 
 ### 新增

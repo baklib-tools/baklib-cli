@@ -12,6 +12,11 @@ import { resolveThemePullRoots } from "../lib/theme-pull-paths.js";
 import { buildThemePreviewFilesMap } from "../lib/theme-preview-liquid-deps.js";
 import { resolvePreviewLocale } from "../lib/theme-preview-locale.js";
 import { THEME_PREVIEW_ADMIN_PANEL_PATH } from "../lib/theme-preview-constants.js";
+import { ensureThemePreviewWorkspace } from "../lib/theme-preview-workdir.js";
+
+/** 与 Open API `GET /themes/:ref` 一致：路径参数为接口返回的主题 id（hashid）或 `scope/name` */
+const THEME_REF_ARGUMENT_DESC =
+  "主题 id（theme list / theme show 返回），或 scope/name（如 cms/guide）";
 
 async function getApi(cmd) {
   const o = mergedOpts(cmd);
@@ -25,12 +30,6 @@ function num(v) {
   if (v === undefined || v === null || v === "") return undefined;
   const n = Number(v);
   return Number.isFinite(n) ? n : undefined;
-}
-
-function packageRoot() {
-  const d = path.dirname(fileURLToPath(import.meta.url));
-  if (path.basename(d) === "dist") return path.join(d, "..");
-  return path.resolve(d, "..", "..");
 }
 
 /** 主题目录相对当前工作目录的展示路径（如 cms--vcard/） */
@@ -236,12 +235,12 @@ export function themeCommand() {
   theme
     .command("show")
     .description("查看模板详情")
-    .argument("<theme>", "主题 hashid / 数字 id，或 scope/name（如 cms/guide）")
+    .argument("<theme>", THEME_REF_ARGUMENT_DESC)
     .action(async (themeArg, opts, cmd) => {
       const api = await getApi(cmd);
       const m = mergedOpts(cmd);
       const ref = themeArg && String(themeArg).trim();
-      if (!ref) throw new Error("请指定主题，例如: baklib theme show 3 或 baklib theme show cms/guide");
+      if (!ref) throw new Error("请指定主题，例如: baklib theme show <id> 或 baklib theme show cms/guide");
       const out = await api.theme.getThemeShow({ theme_ref: ref });
       const ambiguous = Array.isArray(out.themes) && out.themes.length > 1;
       if (ambiguous) {
@@ -271,10 +270,10 @@ export function themeCommand() {
   theme
     .command("pull")
     .description("下载主题文件到本地")
-    .argument("<theme>", "主题 hashid / 数字 id，或 scope/name（如 cms/guide）")
+    .argument("<theme>", THEME_REF_ARGUMENT_DESC)
     .option("--dir <path>", "主题 Git 工作区根；指定时默认写入同一路径（可用 --out 覆盖）")
     .option("--out <dir>", "输出根目录；未指定时与 --dir 或当前工作目录一致")
-    .option("--version-id <id>", "Theme::Version hashid")
+    .option("--version-id <id>", "版本 id（theme show 中分支/标签的 version_id）")
     .option("--version-name <name>", "分支名 / 标签名，或 branch:main / tag:v1.0（未指定时服务端默认 main）")
     .option("--branch <name>", "同 --version-name，便于指定分支")
     .option("--commit-oid <oid>", "Git commit oid")
@@ -288,7 +287,7 @@ export function themeCommand() {
       const { outRoot, gitRoot } = resolveThemePullRoots({ dir: opts.dir, out: opts.out }, process.cwd());
 
       const themeRef = themeArg && String(themeArg).trim();
-      if (!themeRef) throw new Error("请指定主题，例如: baklib theme pull 3 或 baklib theme pull cms/guide");
+      if (!themeRef) throw new Error("请指定主题，例如: baklib theme pull <id> 或 baklib theme pull cms/guide");
 
       let versionName = opts.versionName || opts.branch;
       if (opts.useGitBranch) {
@@ -548,6 +547,10 @@ export function themeCommand() {
     .description("启动本地主题预览与开发面板")
     .option("--theme-dir <path>", "主题根目录（默认 cwd）", process.cwd())
     .option("--port <n>", "开发服务器监听端口", "5174")
+    .option(
+      "--recopy-preview",
+      "删除当前包版本在用户缓存下的 theme dev 工作台，从安装包重新复制 theme-preview、src/lib、src/api 并重新 npm install（排障或强制同步本地改动到缓存时可用）",
+    )
     .action(async (opts, cmd) => {
       const cfg = await loadBaklibConfig();
       const m = mergedOpts(cmd);
@@ -564,8 +567,13 @@ export function themeCommand() {
       process.env.BAKLIB_PREVIEW_LOCALE = locale;
       const port = num(opts.port) ?? 5174;
 
+      const { workspaceRoot, themePreviewRoot } = await ensureThemePreviewWorkspace({
+        quiet: m.json,
+        recopyPreview: Boolean(opts.recopyPreview),
+      });
+
       const { createServer } = await import("vite");
-      const root = path.join(packageRoot(), "theme-preview");
+      const root = themePreviewRoot;
       const server = await createServer({
         root,
         configFile: path.join(root, "vite.config.ts"),
@@ -573,7 +581,7 @@ export function themeCommand() {
         server: {
           port,
           strictPort: false,
-          fs: { allow: [packageRoot(), themeRootResolved] },
+          fs: { allow: [workspaceRoot, themeRootResolved] },
         },
       });
       await server.listen();
@@ -591,7 +599,7 @@ export function themeCommand() {
         );
       }
 
-      const previewRuntimePath = path.join(packageRoot(), "theme-preview/server/preview-sync-runtime.js");
+      const previewRuntimePath = path.join(themePreviewRoot, "server/preview-sync-runtime.js");
       const { shutdownPreviewSyncRuntime } = await import(pathToFileURL(previewRuntimePath).href);
 
       const onShutdown = async () => {
